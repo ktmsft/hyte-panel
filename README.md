@@ -17,6 +17,10 @@ Phase 1 done. Data sources are still placeholders, marked `PREVIEW DATA` in the 
 | 5 | Windows notification listener, Discord | Planned |
 | 6 | Packaging, overnight dimming | Planned |
 
+## Backlog
+
+- **Toggle panels on and off.** Show or hide Clock, Agenda, To-dos and Alerts individually from settings. The grid rows are currently fixed at `auto auto 1fr auto`, so it needs to be built from the visible set, with one panel always taking the leftover height.
+
 ## Running
 
 ```sh
