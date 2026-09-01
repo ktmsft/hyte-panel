@@ -4,6 +4,7 @@ export const IPC = {
   stateChanged: 'state:changed',
   configGet: 'config:get',
   configSet: 'config:set',
+  configChanged: 'config:changed',
   displaysList: 'displays:list',
   panelSetDisplay: 'panel:set-display',
   settingsOpen: 'settings:open',

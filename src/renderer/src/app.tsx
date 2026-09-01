@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
-import type { PanelState } from '@shared/types'
+import type { AppConfig, PanelState } from '@shared/types'
+import { applyScale, applyTheme } from './lib/theme'
 import { Clock } from './widgets/Clock'
 import { Agenda } from './widgets/Agenda'
 import { Todos } from './widgets/Todos'
@@ -18,22 +19,50 @@ function usePanelState(): PanelState | null {
   return state
 }
 
+function useConfig(): AppConfig | null {
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  useEffect(() => {
+    void window.hyte.getConfig().then(setConfig)
+    return window.hyte.onConfigChanged(setConfig)
+  }, [])
+  return config
+}
+
 export function App() {
   const state = usePanelState()
+  const config = useConfig()
 
   useEffect(() => {
     document.body.classList.toggle('panel', !isSettingsWindow)
   }, [])
 
+  useEffect(() => {
+    if (!config) return undefined
+
+    // The settings window is an ordinary opaque desktop window, but it still
+    // wears the theme so colour changes can be judged before they hit the panel.
+    applyTheme(config.theme, config.transparent && !isSettingsWindow)
+
+    if (isSettingsWindow) {
+      document.documentElement.style.fontSize = '16px'
+      return undefined
+    }
+
+    const rescale = (): void => applyScale(config.theme.fontScale)
+    rescale()
+    window.addEventListener('resize', rescale)
+    return () => window.removeEventListener('resize', rescale)
+  }, [config])
+
   if (isSettingsWindow) return <Settings />
-  if (!state) return null
+  if (!state || !config) return null
 
   return (
     <div class="panel-grid">
       <Clock sources={state.sources} mock={state.mock} onOpenSettings={() => void window.hyte.openSettings()} />
       <Agenda events={state.events} health={state.eventsHealth} />
       <Todos tasks={state.tasks} provider={state.taskProvider} />
-      <Alerts sources={state.sources} />
+      <Alerts sources={state.sources} layout={config.alertsLayout} />
     </div>
   )
 }

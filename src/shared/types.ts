@@ -75,11 +75,43 @@ export interface DimConfig {
   level: number
 }
 
+/** `list` is one row per source with text. `grid` is icon tiles, three across. */
+export type AlertsLayout = 'list' | 'grid'
+
+export interface ThemeConfig {
+  /** Id of the preset this came from, or 'custom' once edited. */
+  preset: string
+  /** Page background. Ignored while transparent mode is on. */
+  background: string
+  /** Card fill, as a solid hex. Opacity is applied separately so it can be
+   *  dialled down over a wallpaper without losing the colour. */
+  cardBackground: string
+  cardOpacity: number
+  cardBorder: string
+  text: string
+  muted: string
+  faint: string
+  accent: string
+  ok: string
+  warn: string
+  err: string
+  fontFamily: string
+  /** Multiplier on the whole type scale. 1 is the designed size. */
+  fontScale: number
+  /** Drop shadow behind text. Earns its keep over a busy wallpaper. */
+  textShadow: boolean
+}
+
 export interface AppConfig {
   /** Electron display id chosen by the user. Null means auto-detect by size. */
   displayId: number | null
-  /** Panel dimensions we look for when auto-detecting. Y70 Touch Infinite is 2560x682. */
+  /** Panel dimensions we look for when auto-detecting. Orientation-agnostic. */
   displayMatch: { width: number; height: number }
+  /** Let the desktop wallpaper show through. Requires a window rebuild to change. */
+  transparent: boolean
+  alwaysOnTop: boolean
+  alertsLayout: AlertsLayout
+  theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
   taskProvider: TaskProviderId
   autostart: boolean

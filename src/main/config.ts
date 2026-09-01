@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { AppConfig } from '@shared/types'
+import { DEFAULT_THEME } from '@shared/themes'
 
 /**
  * Settings live as plain JSON in userData. Credentials do not live here, they go
@@ -13,6 +14,12 @@ export const DEFAULT_CONFIG: AppConfig = {
   // Y70 Touch Infinite panel, portrait as mounted in the case. Matching accepts
   // either orientation, so this only has to name the two dimensions.
   displayMatch: { width: 682, height: 2560 },
+  // On by default: the panel is far more interesting sitting over a live
+  // wallpaper than over its own flat background.
+  transparent: true,
+  alwaysOnTop: true,
+  alertsLayout: 'list',
+  theme: DEFAULT_THEME,
   sources: {
     gmail: { enabled: true },
     proton: { enabled: true },
@@ -20,7 +27,9 @@ export const DEFAULT_CONFIG: AppConfig = {
     discord: { enabled: true }
   },
   taskProvider: 'local',
-  autostart: false,
+  // The panel should come back on its own after a reboot. That is the whole
+  // point of something mounted in the case.
+  autostart: true,
   dim: { enabled: false, startHour: 23, endHour: 7, level: 0.35 }
 }
 

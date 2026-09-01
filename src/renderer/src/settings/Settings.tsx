@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'preact/hooks'
-import type { AppConfig, DisplayInfo, SourceId, TaskProviderId } from '@shared/types'
+import type {
+  AlertsLayout,
+  AppConfig,
+  DisplayInfo,
+  SourceId,
+  TaskProviderId,
+  ThemeConfig
+} from '@shared/types'
+import { FONT_STACKS, THEME_PRESETS } from '@shared/themes'
 
 const SOURCE_LABELS: Record<SourceId, string> = {
   gmail: 'Gmail',
@@ -16,6 +24,22 @@ const NOT_YET_WIRED: Partial<Record<SourceId, string>> = {
   discord: 'Needs the toast helper, phase 5'
 }
 
+/** The colours worth exposing individually once a preset is not quite right. */
+const COLOR_FIELDS = [
+  ['text', 'Text'],
+  ['muted', 'Secondary text'],
+  ['faint', 'Labels'],
+  ['accent', 'Accent'],
+  ['cardBackground', 'Card fill'],
+  ['cardBorder', 'Card border'],
+  ['background', 'Page background'],
+  ['ok', 'Healthy'],
+  ['warn', 'Stale'],
+  ['err', 'Error']
+] as const
+
+type ColorKey = (typeof COLOR_FIELDS)[number][0]
+
 export function Settings() {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [displays, setDisplays] = useState<DisplayInfo[]>([])
@@ -30,6 +54,19 @@ export function Settings() {
   }
 
   if (!config) return null
+
+  const { theme } = config
+
+  /** Any hand-edited value means this is no longer one of the presets. */
+  async function patchTheme(update: Partial<ThemeConfig>): Promise<void> {
+    await patch({ theme: { ...theme, ...update, preset: 'custom' } })
+  }
+
+  async function patchColor(key: ColorKey, value: string): Promise<void> {
+    const next: ThemeConfig = { ...theme, preset: 'custom' }
+    next[key] = value
+    await patch({ theme: next })
+  }
 
   return (
     <div class="settings">
@@ -56,13 +93,144 @@ export function Settings() {
           </button>
         ))}
         <p class="hint">
-          Auto-detection looks for a {config.displayMatch.width} x {config.displayMatch.height} panel, then
-          for any non-primary display wider than three times its height. Pick one here to pin it.
+          Auto-detection looks for a {config.displayMatch.width} x {config.displayMatch.height} panel in
+          either orientation, then for any non-primary display more than three times longer than it is
+          wide. Pick one here to pin it.
         </p>
       </section>
 
       <section>
-        <h2>Sources</h2>
+        <h2>Wallpaper Engine</h2>
+        <div class="row">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              checked={config.transparent}
+              onChange={(event) => void patch({ transparent: event.currentTarget.checked })}
+            />
+            Let the wallpaper show through
+          </label>
+        </div>
+        <div class="row">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              checked={config.alwaysOnTop}
+              onChange={(event) => void patch({ alwaysOnTop: event.currentTarget.checked })}
+            />
+            Keep the panel above other windows
+          </label>
+        </div>
+        <p class="hint">
+          The panel is a borderless window at the display's exact bounds rather than a true fullscreen
+          window, because Wallpaper Engine pauses the wallpaper under a focused fullscreen app. Turning
+          transparency on or off rebuilds the window, which is why the panel blinks. Try the{' '}
+          <strong>Glass</strong> theme below: it drops the cards to a tint and turns on text shadows so
+          small text still holds up over a moving wallpaper.
+        </p>
+      </section>
+
+      <section>
+        <h2>Theme</h2>
+        <div class="preset-row">
+          {THEME_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              class={`preset${theme.preset === preset.id ? ' active' : ''}`}
+              title={preset.note}
+              onClick={() => void patch({ theme: { ...preset.theme, preset: preset.id } })}
+            >
+              <span class="swatches">
+                <span class="swatch" style={{ background: preset.theme.cardBackground }} />
+                <span class="swatch" style={{ background: preset.theme.text }} />
+                <span class="swatch" style={{ background: preset.theme.accent }} />
+              </span>
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        <div class="color-grid">
+          {COLOR_FIELDS.map(([key, label]) => (
+            <label class="color-field" key={key}>
+              <input
+                type="color"
+                value={theme[key]}
+                onChange={(event) => void patchColor(key, event.currentTarget.value)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+
+        <div class="row">
+          <span>Font</span>
+          <select
+            value={theme.fontFamily}
+            onChange={(event) => void patchTheme({ fontFamily: event.currentTarget.value })}
+          >
+            {FONT_STACKS.map((font) => (
+              <option key={font.id} value={font.stack}>
+                {font.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div class="row">
+          <span>Text size</span>
+          <input
+            type="range"
+            min="0.75"
+            max="1.4"
+            step="0.05"
+            value={theme.fontScale}
+            onInput={(event) => void patchTheme({ fontScale: Number(event.currentTarget.value) })}
+          />
+          <span class="value">{Math.round(theme.fontScale * 100)}%</span>
+        </div>
+
+        <div class="row">
+          <span>Card opacity</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.02"
+            value={theme.cardOpacity}
+            onInput={(event) => void patchTheme({ cardOpacity: Number(event.currentTarget.value) })}
+          />
+          <span class="value">{Math.round(theme.cardOpacity * 100)}%</span>
+        </div>
+
+        <div class="row">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              checked={theme.textShadow}
+              onChange={(event) => void patchTheme({ textShadow: event.currentTarget.checked })}
+            />
+            Shadow behind text
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Alerts</h2>
+        <div class="row">
+          <span>Layout</span>
+          <div class="segmented">
+            {(['list', 'grid'] as AlertsLayout[]).map((layout) => (
+              <button
+                key={layout}
+                class={config.alertsLayout === layout ? 'active' : ''}
+                onClick={() => void patch({ alertsLayout: layout })}
+              >
+                {layout === 'list' ? 'Rows with text' : 'Icon tiles, 3 across'}
+              </button>
+            ))}
+          </div>
+        </div>
         {(Object.keys(SOURCE_LABELS) as SourceId[]).map((id) => (
           <div class="row" key={id}>
             <label class="toggle">
@@ -124,7 +292,7 @@ export function Settings() {
             Dim overnight
           </label>
           <span class="spacer" />
-          <span class="meta">
+          <span class="value">
             {String(config.dim.startHour).padStart(2, '0')}:00 to{' '}
             {String(config.dim.endHour).padStart(2, '0')}:00
           </span>

@@ -7,6 +7,8 @@ export interface HyteApi {
   onStateChanged(callback: (state: PanelState) => void): () => void
   getConfig(): Promise<AppConfig>
   setConfig(patch: Partial<AppConfig>): Promise<AppConfig>
+  /** Fires in every window when any window changes settings. Returns an unsubscribe function. */
+  onConfigChanged(callback: (config: AppConfig) => void): () => void
   listDisplays(): Promise<DisplayInfo[]>
   setDisplay(displayId: number): Promise<DisplayInfo[]>
   openSettings(): Promise<void>

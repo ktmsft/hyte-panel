@@ -13,6 +13,8 @@ const RENDERER_URL = process.env.ELECTRON_RENDERER_URL
 let panelWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let activeDisplayId: number | null = null
+/** Suppresses the quit-on-last-window-closed rule while we swap the panel window. */
+let rebuilding = false
 
 function loadRoute(window: BrowserWindow, route: 'panel' | 'settings'): void {
   const hash = route === 'settings' ? '#settings' : ''
@@ -29,6 +31,7 @@ function createPanelWindow(): void {
   activeDisplayId = display.id
 
   const { x, y, width, height } = display.bounds
+  const transparent = config.transparent && !WINDOWED
 
   panelWindow = new BrowserWindow({
     x: WINDOWED ? undefined : x,
@@ -38,11 +41,23 @@ function createPanelWindow(): void {
     width: WINDOWED ? 256 : width,
     height: WINDOWED ? 960 : height,
     frame: WINDOWED,
-    fullscreen: !WINDOWED,
+    resizable: WINDOWED,
+    movable: WINDOWED,
+    hasShadow: false,
+    /*
+     * Deliberately NOT `fullscreen: true`. Wallpaper Engine pauses the wallpaper
+     * under a focused fullscreen window, and a paused wallpaper is the whole
+     * thing we are trying to avoid. A borderless window at the display's exact
+     * bounds is visually identical and leaves the wallpaper running.
+     */
+    transparent,
+    backgroundColor: transparent ? '#00000000' : config.theme.background,
     // Only pin above other windows once we are confident we are on the case panel,
     // otherwise a mis-detection would park an always-on-top window over the desktop.
-    alwaysOnTop: !WINDOWED && detected,
-    backgroundColor: '#07090c',
+    alwaysOnTop: !WINDOWED && detected && config.alwaysOnTop,
+    // No taskbar button and no Alt+Tab entry. On the case panel this should read
+    // as part of the machine, not as an app someone left open.
+    skipTaskbar: !WINDOWED,
     autoHideMenuBar: true,
     show: false,
     title: 'Hyte Panel',
@@ -54,14 +69,18 @@ function createPanelWindow(): void {
     }
   })
 
-  panelWindow.once('ready-to-show', () => panelWindow?.show())
-  panelWindow.on('closed', () => {
-    panelWindow = null
-    activeDisplayId = null
+  const thisWindow = panelWindow
+  thisWindow.once('ready-to-show', () => thisWindow.show())
+  thisWindow.on('closed', () => {
+    // Guard against a rebuild's old window nulling out its replacement.
+    if (panelWindow === thisWindow) {
+      panelWindow = null
+      activeDisplayId = null
+    }
   })
 
   // Keep navigation inside the app. External links go to the real browser.
-  panelWindow.webContents.setWindowOpenHandler(({ url }) => {
+  thisWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }
   })
@@ -73,7 +92,18 @@ function createPanelWindow(): void {
     )
   }
 
-  loadRoute(panelWindow, 'panel')
+  loadRoute(thisWindow, 'panel')
+}
+
+/** `transparent` is fixed at construction time, so changing it means a new window. */
+function rebuildPanelWindow(): void {
+  rebuilding = true
+  panelWindow?.destroy()
+  panelWindow = null
+  createPanelWindow()
+  setImmediate(() => {
+    rebuilding = false
+  })
 }
 
 function movePanelToDisplay(displayId: number): void {
@@ -83,13 +113,21 @@ function movePanelToDisplay(displayId: number): void {
   setConfig({ displayId })
   activeDisplayId = display.id
 
-  const { x, y, width, height } = display.bounds
-  panelWindow.setFullScreen(false)
-  panelWindow.setBounds({ x, y, width, height })
-  if (!WINDOWED) {
-    panelWindow.setFullScreen(true)
-    panelWindow.setAlwaysOnTop(true)
+  if (WINDOWED) {
+    // Dev mode keeps its small proportional window, just moved onto the chosen
+    // display. Blowing it up to full bounds would misrepresent the real thing.
+    const current = panelWindow.getBounds()
+    panelWindow.setBounds({
+      x: display.bounds.x + 40,
+      y: display.bounds.y + 40,
+      width: current.width,
+      height: current.height
+    })
+    return
   }
+
+  panelWindow.setBounds(display.bounds)
+  panelWindow.setAlwaysOnTop(getConfig().alwaysOnTop)
 }
 
 function openSettingsWindow(): void {
@@ -99,13 +137,13 @@ function openSettingsWindow(): void {
   }
 
   // Settings deliberately open on the primary monitor. Typing an app password on
-  // a 682px-tall on-screen keyboard is not something anyone should have to do.
+  // a 682px-wide on-screen keyboard is not something anyone should have to do.
   const primary = screen.getPrimaryDisplay()
   settingsWindow = new BrowserWindow({
-    width: 900,
-    height: 760,
-    x: Math.round(primary.bounds.x + (primary.bounds.width - 900) / 2),
-    y: Math.round(primary.bounds.y + (primary.bounds.height - 760) / 2),
+    width: 960,
+    height: 820,
+    x: Math.round(primary.bounds.x + (primary.bounds.width - 960) / 2),
+    y: Math.round(primary.bounds.y + (primary.bounds.height - 820) / 2),
     backgroundColor: '#0d1117',
     autoHideMenuBar: true,
     title: 'Hyte Panel settings',
@@ -126,12 +164,39 @@ function openSettingsWindow(): void {
   loadRoute(settingsWindow, 'settings')
 }
 
+function broadcast(channel: string, payload: unknown): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send(channel, payload)
+  }
+}
+
+function applyConfig(previous: AppConfig, next: AppConfig): void {
+  app.setLoginItemSettings({ openAtLogin: next.autostart })
+
+  if (previous.transparent !== next.transparent) {
+    // Everything else can be applied live; this one cannot.
+    rebuildPanelWindow()
+    return
+  }
+
+  if (panelWindow && !WINDOWED) {
+    if (previous.alwaysOnTop !== next.alwaysOnTop) {
+      panelWindow.setAlwaysOnTop(next.alwaysOnTop)
+    }
+    if (!next.transparent && previous.theme.background !== next.theme.background) {
+      panelWindow.setBackgroundColor(next.theme.background)
+    }
+  }
+}
+
 function registerIpc(): void {
   ipcMain.handle(IPC.stateGet, () => getState())
   ipcMain.handle(IPC.configGet, () => getConfig())
   ipcMain.handle(IPC.configSet, (_event, patch: Partial<AppConfig>) => {
+    const previous = getConfig()
     const next = setConfig(patch)
-    app.setLoginItemSettings({ openAtLogin: next.autostart })
+    applyConfig(previous, next)
+    broadcast(IPC.configChanged, next)
     return next
   })
   ipcMain.handle(IPC.displaysList, () => listDisplays(activeDisplayId))
@@ -145,14 +210,6 @@ function registerIpc(): void {
   ipcMain.handle(IPC.taskToggle, (_event, id: string) => toggleTask(id))
   ipcMain.handle(IPC.taskRemove, (_event, id: string) => removeTask(id))
   ipcMain.handle(IPC.appQuit, () => app.quit())
-}
-
-function broadcastState(): void {
-  subscribe((state) => {
-    for (const window of BrowserWindow.getAllWindows()) {
-      if (!window.isDestroyed()) window.webContents.send(IPC.stateChanged, state)
-    }
-  })
 }
 
 /** A second launch focuses the panel rather than opening a duplicate on the same screen. */
@@ -171,14 +228,13 @@ if (!app.requestSingleInstanceLock()) {
     app.setLoginItemSettings({ openAtLogin: getConfig().autostart })
 
     registerIpc()
-    broadcastState()
+    subscribe((state) => broadcast(IPC.stateChanged, state))
     createPanelWindow()
 
     // The case panel is often slower to enumerate than the desktop monitors at
     // boot, and it disappears entirely if the DisplayPort cable is pulled.
     screen.on('display-added', () => {
-      const config = getConfig()
-      const { display, detected } = findPanelDisplay(config)
+      const { display, detected } = findPanelDisplay(getConfig())
       if (detected && display.id !== activeDisplayId) movePanelToDisplay(display.id)
     })
 
@@ -186,7 +242,6 @@ if (!app.requestSingleInstanceLock()) {
       if (removed.id !== activeDisplayId || !panelWindow) return
       const primary = screen.getPrimaryDisplay()
       panelWindow.setAlwaysOnTop(false)
-      panelWindow.setFullScreen(false)
       panelWindow.setBounds(primary.bounds)
       activeDisplayId = primary.id
     })
@@ -196,5 +251,7 @@ if (!app.requestSingleInstanceLock()) {
     })
   })
 
-  app.on('window-all-closed', () => app.quit())
+  app.on('window-all-closed', () => {
+    if (!rebuilding) app.quit()
+  })
 }

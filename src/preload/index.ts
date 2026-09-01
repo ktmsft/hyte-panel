@@ -14,6 +14,13 @@ const api: HyteApi = {
   },
   getConfig: () => ipcRenderer.invoke(IPC.configGet),
   setConfig: (patch: Partial<AppConfig>) => ipcRenderer.invoke(IPC.configSet, patch),
+  onConfigChanged: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, config: AppConfig): void => callback(config)
+    ipcRenderer.on(IPC.configChanged, handler)
+    return () => {
+      ipcRenderer.off(IPC.configChanged, handler)
+    }
+  },
   listDisplays: () => ipcRenderer.invoke(IPC.displaysList),
   setDisplay: (displayId: number) => ipcRenderer.invoke(IPC.panelSetDisplay, displayId),
   openSettings: () => ipcRenderer.invoke(IPC.settingsOpen),

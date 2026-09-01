@@ -1,12 +1,19 @@
-import type { SourceState } from '@shared/types'
+import type { AlertsLayout, SourceState } from '@shared/types'
 import { relativeAge } from '@/lib/format'
 import { useNow } from '@/lib/useNow'
+import { SourceIcon } from './icons'
 
 interface Props {
   sources: SourceState[]
+  layout: AlertsLayout
 }
 
-/** What the tile says under the label, depending on how healthy the source is. */
+/** A source only has a real number to show when it has actually reached the service. */
+function hasValue(source: SourceState): boolean {
+  return source.health === 'ok' || source.health === 'stale'
+}
+
+/** What the row says under the label, depending on how healthy the source is. */
 function note(source: SourceState, nowMs: number): { text: string; error: boolean } {
   switch (source.health) {
     case 'ok':
@@ -22,7 +29,7 @@ function note(source: SourceState, nowMs: number): { text: string; error: boolea
   }
 }
 
-export function Alerts({ sources }: Props) {
+export function Alerts({ sources, layout }: Props) {
   const now = useNow(30_000)
   const enabled = sources.filter((source) => source.enabled)
 
@@ -33,21 +40,45 @@ export function Alerts({ sources }: Props) {
       </div>
       <div class="card-body">
         {enabled.length === 0 && <div class="empty">Every source is switched off.</div>}
-        {enabled.map((source) => {
-          const detail = note(source, now.getTime())
-          const live = source.health === 'ok' || source.health === 'stale'
-          return (
-            <div class={`alert ${source.health}`} key={source.id}>
-              <span class={`alert-count${source.count === 0 || !live ? ' zero' : ''}`}>
-                {live ? source.count : '–'}
-              </span>
-              <span style="min-width:0">
-                <div class="alert-label">{source.label}</div>
-                <div class={`alert-note${detail.error ? ' error' : ''}`}>{detail.text}</div>
-              </span>
-            </div>
-          )
-        })}
+
+        {layout === 'grid' ? (
+          <div class="alert-grid">
+            {enabled.map((source) => {
+              const live = hasValue(source)
+              const unread = live && source.count > 0
+              return (
+                <div
+                  class={`alert-tile ${source.health}${unread ? ' unread' : ''}`}
+                  key={source.id}
+                  title={source.label}
+                >
+                  <SourceIcon id={source.id} class="alert-icon" />
+                  {live ? (
+                    source.count > 0 && <span class="alert-badge">{source.count}</span>
+                  ) : (
+                    <span class="alert-badge muted">!</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          enabled.map((source) => {
+            const detail = note(source, now.getTime())
+            const live = hasValue(source)
+            return (
+              <div class={`alert ${source.health}`} key={source.id}>
+                <span class={`alert-count${source.count === 0 || !live ? ' zero' : ''}`}>
+                  {live ? source.count : '–'}
+                </span>
+                <span style="min-width:0">
+                  <div class="alert-label">{source.label}</div>
+                  <div class={`alert-note${detail.error ? ' error' : ''}`}>{detail.text}</div>
+                </span>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

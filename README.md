@@ -32,11 +32,11 @@ To-dos take whatever height the other three do not, which is what makes 2560px o
 
 ## Status
 
-Phase 1 (the shell) is working: display detection, the fullscreen kiosk window, the four-widget layout, a settings window, and autostart. Every data source still shows placeholder values, marked in the UI with a `PREVIEW DATA` chip.
+Phase 1 (the shell) is working: display detection, the borderless panel window, the four-widget layout, theming, Wallpaper Engine transparency, a settings window, and autostart. Every data source still shows placeholder values, marked in the UI with a `PREVIEW DATA` chip.
 
 | Phase | Scope | State |
 | --- | --- | --- |
-| 1 | Shell, display detection, layout, settings | Done |
+| 1 | Shell, display detection, layout, theming, settings | Done |
 | 2 | Google OAuth, Calendar agenda, Gmail unread | Next |
 | 3 | Bluesky and Proton Mail adapters | Planned |
 | 4 | Task backends and the on-screen keyboard | Planned |
@@ -52,9 +52,34 @@ npm run dev:windowed   # a small desktop window, for working on the layout
 npm run build          # typecheck both projects and bundle
 ```
 
-Settings open on your **primary** monitor, not on the case display, because typing an app password on a 682px-tall on-screen keyboard is not a reasonable thing to ask of anyone.
+`npm run dev` is the real thing: a borderless window at the case display's exact bounds, no title bar, no taskbar button, no Alt+Tab entry, no cursor. `npm run dev:windowed` is a small proportional window for working on the layout without taking over the panel.
 
-If the panel opens on the wrong screen, pick the right one in settings. Auto-detection looks for a 2560 x 682 display first, then any non-primary display more than three times wider than it is tall.
+Settings open on your **primary** monitor, not on the case display, because typing an app password on a 682px-wide on-screen keyboard is not a reasonable thing to ask of anyone.
+
+If the panel opens on the wrong screen, pick the right one in settings. Auto-detection looks for a 682 x 2560 display in either orientation, then any non-primary display more than three times longer than it is wide.
+
+## Wallpaper Engine
+
+The panel is designed to sit on top of a live wallpaper rather than replace it. Two things make that work.
+
+**It is never a true fullscreen window.** Wallpaper Engine pauses the wallpaper under a focused fullscreen application, so the panel is a borderless window sized to the display's exact bounds instead. It looks identical and the wallpaper keeps running. If Wallpaper Engine still pauses, add an exception under its [application rules](https://help.wallpaperengine.io/en/functionality/applicationrules.html).
+
+**The window itself is transparent.** With transparency on (the default), the page has no background of its own and the wallpaper shows through between and behind the cards. Card fills are stored as a solid colour plus a separate opacity, so you can dial a card down to a tint without losing its colour.
+
+Start with the **Glass** theme preset. It drops the cards to 42% and turns on text shadows, which is what small text needs over a moving wallpaper. Transparency is the one setting that rebuilds the window when toggled, because Electron fixes it at construction time.
+
+## Theming
+
+Every colour is a CSS custom property written from config at runtime, so changes repaint immediately with no reload. Settings give you five presets (Midnight, Glass, Carbon, Ember, Mint), then individual pickers for text, secondary text, labels, accent, card fill, card border, page background, and the three health colours. Editing any of them flips the theme to `custom` and keeps your values.
+
+Also configurable: font (Segoe UI, Bahnschrift condensed, Cascadia Mono, Georgia), overall text size, card opacity, and the text shadow.
+
+## Alert layouts
+
+Two, switchable in settings:
+
+- **Rows with text**, the default: unread count, source name, and the newest item or the reason it cannot report.
+- **Icon tiles, three across**: silhouette per platform with a count badge, no labels. The icons are drawn in `currentColor` so they follow the theme, which means they have to read by shape alone: envelope, padlock, butterfly, chat face.
 
 ### A note on VS Code terminals
 
