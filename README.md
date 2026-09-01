@@ -73,6 +73,8 @@ Credentials are encrypted with `safeStorage` under `userData`, never in the repo
 
 Nexus Link also wants this display. Turn its screen feature off if the two fight.
 
+**If touch does nothing**, Windows has the digitizer mapped to the wrong monitor. Run `TabletPC.cpl` → Setup, press Enter until the prompt appears on the panel, then touch it. Nothing in Device Manager will look wrong: the digitizer reports ready and `TouchGate` stays 1, the input just lands on another screen.
+
 ## Licence
 
 MIT.
