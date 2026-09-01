@@ -58,25 +58,40 @@ const BASE: Omit<ThemeConfig, 'preset'> = {
 
 export const THEME_PRESETS: ThemePreset[] = [
   {
-    id: 'midnight',
-    label: 'Midnight',
-    note: 'The default. Cool grey on near-black, solid cards.',
-    theme: { ...BASE }
+    id: 'frosted',
+    label: 'Frosted',
+    note: 'The default. Tuned for the Frosted glass mode: cards sit as a darker pane over the acrylic blur.',
+    theme: {
+      ...BASE,
+      cardBackground: '#0d151f',
+      cardOpacity: 0.34,
+      cardBorder: '#54657a',
+      text: '#f5f9fd',
+      muted: '#c8d4e0',
+      faint: '#9aa8b6',
+      textShadow: true
+    }
   },
   {
     id: 'glass',
     label: 'Glass',
-    note: 'Built for Wallpaper Engine. Cards drop to a tint and text gets a shadow.',
+    note: 'For the Clear glass mode. A heavier tint, since nothing is blurring the wallpaper for you.',
     theme: {
       ...BASE,
       cardBackground: '#0a1017',
-      cardOpacity: 0.42,
+      cardOpacity: 0.52,
       cardBorder: '#3b4a5a',
       text: '#f4f8fc',
       muted: '#c2ced9',
       faint: '#93a2b0',
       textShadow: true
     }
+  },
+  {
+    id: 'midnight',
+    label: 'Midnight',
+    note: 'Cool grey on near-black, fully solid cards. Pair with the Solid glass mode.',
+    theme: { ...BASE }
   },
   {
     id: 'carbon',
@@ -128,7 +143,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   }
 ]
 
-export const DEFAULT_THEME: ThemeConfig = { preset: 'midnight', ...BASE }
+export const DEFAULT_THEME: ThemeConfig = { preset: 'frosted', ...THEME_PRESETS[0].theme }
 
 export function presetById(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((preset) => preset.id === id)

@@ -64,13 +64,25 @@ The panel is designed to sit on top of a live wallpaper rather than replace it. 
 
 **It is never a true fullscreen window.** Wallpaper Engine pauses the wallpaper under a focused fullscreen application, so the panel is a borderless window sized to the display's exact bounds instead. It looks identical and the wallpaper keeps running. If Wallpaper Engine still pauses, add an exception under its [application rules](https://help.wallpaperengine.io/en/functionality/applicationrules.html).
 
-**The window itself is transparent.** With transparency on (the default), the page has no background of its own and the wallpaper shows through between and behind the cards. Card fills are stored as a solid colour plus a separate opacity, so you can dial a card down to a tint without losing its colour.
+**There are three glass modes**, and the difference between them is worth understanding.
 
-Start with the **Glass** theme preset. It drops the cards to 42% and turns on text shadows, which is what small text needs over a moving wallpaper. Transparency is the one setting that rebuilds the window when toggled, because Electron fixes it at construction time.
+| Mode | What it does | Trade |
+| --- | --- | --- |
+| **Frosted** (default) | Windows 11 acrylic blurs the wallpaper behind the panel | The gaps between cards are frosted too, not sharp |
+| **Clear** | Wallpaper stays sharp, cards are translucent over it | Nothing is blurred, so busy wallpapers fight the text |
+| **Solid** | The panel paints its own background | The wallpaper is ignored |
+
+Frosted is the only one that genuinely blurs. CSS `backdrop-filter` cannot do this: it samples the page's own backdrop, and behind a transparent window that is nothing at all. The blur has to come from the compositor, which means Windows' acrylic material.
+
+Getting acrylic to apply has one counter-intuitive requirement: the window must **not** be `transparent: true`. Electron omits the layered-window flags when transparency is off, and those flags are exactly what stops DWM painting its material. Setting `backgroundColor` to `#00000000` then clears Chromium's own buffer so the acrylic shows through the page. See [src/main/index.ts](src/main/index.ts).
+
+Acrylic needs Windows 11 22H2 or newer and Transparency effects switched on in Windows Settings. Clear mode is the fallback if either is missing.
+
+Card fills are stored as a solid colour plus a separate opacity, so you can dial a card down to a tint without losing its colour. Each glass mode has a matching theme preset: Frosted, Glass and Midnight. Changing glass mode rebuilds the window, which is why the panel blinks.
 
 ## Theming
 
-Every colour is a CSS custom property written from config at runtime, so changes repaint immediately with no reload. Settings give you five presets (Midnight, Glass, Carbon, Ember, Mint), then individual pickers for text, secondary text, labels, accent, card fill, card border, page background, and the three health colours. Editing any of them flips the theme to `custom` and keeps your values.
+Every colour is a CSS custom property written from config at runtime, so changes repaint immediately with no reload. Settings give you six presets (Frosted, Glass, Midnight, Carbon, Ember, Mint), then individual pickers for text, secondary text, labels, accent, card fill, card border, page background, and the three health colours. Editing any of them flips the theme to `custom` and keeps your values.
 
 Also configurable: font (Segoe UI, Bahnschrift condensed, Cascadia Mono, Georgia), overall text size, card opacity, and the text shadow.
 

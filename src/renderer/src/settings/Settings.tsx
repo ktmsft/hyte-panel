@@ -3,6 +3,7 @@ import type {
   AlertsLayout,
   AppConfig,
   DisplayInfo,
+  GlassMode,
   SourceId,
   TaskProviderId,
   ThemeConfig
@@ -39,6 +40,20 @@ const COLOR_FIELDS = [
 ] as const
 
 type ColorKey = (typeof COLOR_FIELDS)[number][0]
+
+const GLASS_MODES = [
+  ['frosted', 'Frosted'],
+  ['clear', 'Clear'],
+  ['solid', 'Solid']
+] as const satisfies readonly (readonly [GlassMode, string])[]
+
+const GLASS_NOTES: Record<GlassMode, string> = {
+  frosted:
+    'Windows 11 acrylic blurs the wallpaper behind the whole panel, which is the only way to actually blur it. The trade is that the gaps between cards are frosted too, rather than showing the wallpaper sharp. Needs Transparency effects on in Windows Settings.',
+  clear:
+    'The wallpaper stays sharp everywhere and the cards are translucent over it. Nothing is blurred, so raise the card opacity if a busy wallpaper is fighting the text.',
+  solid: 'The panel paints its own background and ignores the wallpaper entirely.'
+}
 
 export function Settings() {
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -102,15 +117,20 @@ export function Settings() {
       <section>
         <h2>Wallpaper Engine</h2>
         <div class="row">
-          <label class="toggle">
-            <input
-              type="checkbox"
-              checked={config.transparent}
-              onChange={(event) => void patch({ transparent: event.currentTarget.checked })}
-            />
-            Let the wallpaper show through
-          </label>
+          <span>Glass</span>
+          <div class="segmented">
+            {GLASS_MODES.map(([mode, label]) => (
+              <button
+                key={mode}
+                class={config.glassMode === mode ? 'active' : ''}
+                onClick={() => void patch({ glassMode: mode })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+        <p class="hint">{GLASS_NOTES[config.glassMode]}</p>
         <div class="row">
           <label class="toggle">
             <input
@@ -123,10 +143,10 @@ export function Settings() {
         </div>
         <p class="hint">
           The panel is a borderless window at the display's exact bounds rather than a true fullscreen
-          window, because Wallpaper Engine pauses the wallpaper under a focused fullscreen app. Turning
-          transparency on or off rebuilds the window, which is why the panel blinks. Try the{' '}
-          <strong>Glass</strong> theme below: it drops the cards to a tint and turns on text shadows so
-          small text still holds up over a moving wallpaper.
+          window, because Wallpaper Engine pauses the wallpaper under a focused fullscreen app. Changing
+          the glass mode rebuilds the window, which is why the panel blinks. Each mode has a matching
+          theme preset below: <strong>Frosted</strong>, <strong>Glass</strong> and{' '}
+          <strong>Midnight</strong>.
         </p>
       </section>
 

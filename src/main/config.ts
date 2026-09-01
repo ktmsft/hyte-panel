@@ -9,14 +9,17 @@ import { DEFAULT_THEME } from '@shared/themes'
  * through secrets.ts and are encrypted with the OS keystore.
  */
 
+export const CONFIG_VERSION = 1
+
 export const DEFAULT_CONFIG: AppConfig = {
+  configVersion: CONFIG_VERSION,
   displayId: null,
   // Y70 Touch Infinite panel, portrait as mounted in the case. Matching accepts
   // either orientation, so this only has to name the two dimensions.
   displayMatch: { width: 682, height: 2560 },
-  // On by default: the panel is far more interesting sitting over a live
+  // Frosted by default: the panel is far more interesting sitting over a live
   // wallpaper than over its own flat background.
-  transparent: true,
+  glassMode: 'frosted',
   alwaysOnTop: true,
   alertsLayout: 'list',
   theme: DEFAULT_THEME,
@@ -54,12 +57,36 @@ function merge(base: AppConfig, patch: Partial<AppConfig>): AppConfig {
   return out as unknown as AppConfig
 }
 
+/** Shape of the pre-versioning config, kept only so v0 files can be read. */
+interface LegacyConfig extends Partial<AppConfig> {
+  transparent?: boolean
+}
+
+/**
+ * v0 had a `transparent` boolean and defaulted to a solid Midnight theme. The
+ * glass modes replace the boolean, and anyone still on the untouched default
+ * theme is moved to Frosted, since that is what the new default looks like.
+ * A theme the user actually customised is left exactly as they left it.
+ */
+function migrate(saved: LegacyConfig): Partial<AppConfig> {
+  if ((saved.configVersion ?? 0) >= CONFIG_VERSION) return saved
+
+  const next: Partial<AppConfig> = { ...saved, configVersion: CONFIG_VERSION }
+  next.glassMode = saved.glassMode ?? (saved.transparent === false ? 'solid' : 'frosted')
+  if (saved.theme && saved.theme.preset === 'midnight' && saved.theme.cardOpacity === 1) {
+    next.theme = DEFAULT_THEME
+  }
+  delete (next as LegacyConfig).transparent
+  return next
+}
+
 export function getConfig(): AppConfig {
   if (cache) return cache
   const path = configPath()
   if (existsSync(path)) {
     try {
-      cache = merge(DEFAULT_CONFIG, JSON.parse(readFileSync(path, 'utf8')) as Partial<AppConfig>)
+      const saved = JSON.parse(readFileSync(path, 'utf8')) as LegacyConfig
+      cache = merge(DEFAULT_CONFIG, migrate(saved))
       return cache
     } catch (err) {
       // A corrupt config should not stop the panel from opening.

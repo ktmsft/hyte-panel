@@ -31,7 +31,9 @@ function createPanelWindow(): void {
   activeDisplayId = display.id
 
   const { x, y, width, height } = display.bounds
-  const transparent = config.transparent && !WINDOWED
+  // Dev mode stays opaque: a transparent frameless dev window is unusable, and
+  // acrylic there would just be confusing.
+  const mode = WINDOWED ? 'solid' : config.glassMode
 
   panelWindow = new BrowserWindow({
     x: WINDOWED ? undefined : x,
@@ -50,8 +52,22 @@ function createPanelWindow(): void {
      * thing we are trying to avoid. A borderless window at the display's exact
      * bounds is visually identical and leaves the wallpaper running.
      */
-    transparent,
-    backgroundColor: transparent ? '#00000000' : config.theme.background,
+    /*
+     * Frosted deliberately leaves `transparent` false. Electron omits the
+     * layered-window flags in that case, which is exactly what lets DWM paint
+     * its acrylic material behind the page; setting `transparent: true` blocks
+     * it entirely. A fully transparent backgroundColor then clears Chromium's
+     * own buffer so the acrylic shows through the page.
+     *
+     * Acrylic is the only way to blur what is behind the window. CSS
+     * backdrop-filter samples the page's own backdrop, which behind a
+     * transparent window is nothing at all.
+     */
+    transparent: mode === 'clear',
+    backgroundColor: mode === 'solid' ? config.theme.background : '#00000000',
+    // Windows 11 22H2 and up. Silently ignored on older builds, which is why
+    // Clear stays available as a fallback.
+    backgroundMaterial: mode === 'frosted' ? 'acrylic' : 'none',
     // Only pin above other windows once we are confident we are on the case panel,
     // otherwise a mis-detection would park an always-on-top window over the desktop.
     alwaysOnTop: !WINDOWED && detected && config.alwaysOnTop,
@@ -173,8 +189,9 @@ function broadcast(channel: string, payload: unknown): void {
 function applyConfig(previous: AppConfig, next: AppConfig): void {
   app.setLoginItemSettings({ openAtLogin: next.autostart })
 
-  if (previous.transparent !== next.transparent) {
-    // Everything else can be applied live; this one cannot.
+  if (previous.glassMode !== next.glassMode) {
+    // Transparency is fixed at construction time, so this one needs a new window.
+    // Everything else applies live.
     rebuildPanelWindow()
     return
   }
@@ -183,7 +200,7 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
     if (previous.alwaysOnTop !== next.alwaysOnTop) {
       panelWindow.setAlwaysOnTop(next.alwaysOnTop)
     }
-    if (!next.transparent && previous.theme.background !== next.theme.background) {
+    if (next.glassMode === 'solid' && previous.theme.background !== next.theme.background) {
       panelWindow.setBackgroundColor(next.theme.background)
     }
   }

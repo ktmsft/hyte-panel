@@ -78,6 +78,20 @@ export interface DimConfig {
 /** `list` is one row per source with text. `grid` is icon tiles, three across. */
 export type AlertsLayout = 'list' | 'grid'
 
+/**
+ * How the panel sits over the desktop wallpaper.
+ *
+ * `frosted` uses Windows 11's acrylic material, which is the only way to
+ * actually blur what is behind the window. CSS backdrop-filter cannot: it
+ * samples the page's own backdrop, and behind a transparent window that is
+ * empty. The catch is that acrylic frosts the entire window, so the gaps
+ * between cards are blurred too rather than showing crisp wallpaper.
+ *
+ * `clear` keeps the wallpaper sharp everywhere and makes the cards translucent
+ * instead. `solid` paints the theme background and ignores the wallpaper.
+ */
+export type GlassMode = 'frosted' | 'clear' | 'solid'
+
 export interface ThemeConfig {
   /** Id of the preset this came from, or 'custom' once edited. */
   preset: string
@@ -103,12 +117,14 @@ export interface ThemeConfig {
 }
 
 export interface AppConfig {
+  /** Bumped when a saved config needs migrating. See main/config.ts. */
+  configVersion: number
   /** Electron display id chosen by the user. Null means auto-detect by size. */
   displayId: number | null
   /** Panel dimensions we look for when auto-detecting. Orientation-agnostic. */
   displayMatch: { width: number; height: number }
-  /** Let the desktop wallpaper show through. Requires a window rebuild to change. */
-  transparent: boolean
+  /** Requires a window rebuild to change, so it is applied by recreating it. */
+  glassMode: GlassMode
   alwaysOnTop: boolean
   alertsLayout: AlertsLayout
   theme: ThemeConfig

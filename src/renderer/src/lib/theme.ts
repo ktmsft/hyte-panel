@@ -1,4 +1,4 @@
-import type { ThemeConfig } from '@shared/types'
+import type { GlassMode, ThemeConfig } from '@shared/types'
 
 /** Card fills are stored as solid hex plus a separate opacity, so the colour
  *  survives being dialled down to a tint over a wallpaper. */
@@ -23,12 +23,13 @@ function hexToRgba(hex: string, alpha: number): string {
  * styles.css reads these, so a change here repaints the whole panel with no
  * re-render and no reload.
  */
-export function applyTheme(theme: ThemeConfig, transparent: boolean): void {
+export function applyTheme(theme: ThemeConfig, glassMode: GlassMode): void {
   const root = document.documentElement
   const set = (name: string, value: string): void => root.style.setProperty(name, value)
 
-  // Transparent mode lets the Wallpaper Engine wallpaper through the page itself.
-  set('--bg', transparent ? 'transparent' : theme.background)
+  // Anything but solid needs the page itself to have no background, so either
+  // the wallpaper (clear) or the acrylic material (frosted) can show through.
+  set('--bg', glassMode === 'solid' ? theme.background : 'transparent')
   set('--card-bg', hexToRgba(theme.cardBackground, theme.cardOpacity))
   set('--line', theme.cardBorder)
   set('--text', theme.text)

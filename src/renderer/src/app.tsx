@@ -41,7 +41,7 @@ export function App() {
 
     // The settings window is an ordinary opaque desktop window, but it still
     // wears the theme so colour changes can be judged before they hit the panel.
-    applyTheme(config.theme, config.transparent && !isSettingsWindow)
+    applyTheme(config.theme, isSettingsWindow ? 'solid' : config.glassMode)
 
     if (isSettingsWindow) {
       document.documentElement.style.fontSize = '16px'
@@ -59,7 +59,7 @@ export function App() {
 
   return (
     <div class="panel-grid">
-      <Clock sources={state.sources} mock={state.mock} onOpenSettings={() => void window.hyte.openSettings()} />
+      <Clock mock={state.mock} onOpenSettings={() => void window.hyte.openSettings()} />
       <Agenda events={state.events} health={state.eventsHealth} />
       <Todos tasks={state.tasks} provider={state.taskProvider} />
       <Alerts sources={state.sources} layout={config.alertsLayout} />

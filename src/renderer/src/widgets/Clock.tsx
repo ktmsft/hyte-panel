@@ -1,18 +1,17 @@
-import type { SourceState } from '@shared/types'
-import { formatDate, relativeAge } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import { useNow } from '@/lib/useNow'
 
 interface Props {
-  sources: SourceState[]
   mock: boolean
   onOpenSettings: () => void
 }
 
-export function Clock({ sources, mock, onOpenSettings }: Props) {
+/**
+ * Time, date, and nothing else. Source health used to live here too, but the
+ * alerts card already says the same thing lower down the panel.
+ */
+export function Clock({ mock, onOpenSettings }: Props) {
   const now = useNow(1000)
-  const hours = now.getHours()
-  const minutes = now.getMinutes()
-  const seconds = now.getSeconds()
 
   return (
     <div class="card">
@@ -27,23 +26,10 @@ export function Clock({ sources, mock, onOpenSettings }: Props) {
       </div>
 
       <div class="clock-time">
-        {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}
-        <span class="clock-seconds">{String(seconds).padStart(2, '0')}</span>
+        {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}
+        <span class="clock-seconds">{String(now.getSeconds()).padStart(2, '0')}</span>
       </div>
       <div class="clock-date">{formatDate(now)}</div>
-
-      <div class="clock-spacer" />
-
-      {sources
-        .filter((source) => source.enabled)
-        .map((source) => (
-          <div class="health-row" key={source.id}>
-            <span class={`dot ${source.health}`} />
-            <span>{source.label}</span>
-            <span class="spacer" />
-            <span>{source.health === 'ok' ? relativeAge(source.checkedAt, now.getTime()) : source.health}</span>
-          </div>
-        ))}
     </div>
   )
 }
