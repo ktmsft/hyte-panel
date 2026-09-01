@@ -1,0 +1,47 @@
+{
+  "name": "hyte-panel",
+  "version": "0.1.0",
+  "description": "A custom dashboard for the HYTE Y70 Touch Infinite case display",
+  "main": "./out/main/index.js",
+  "author": "Kennedy Michel",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/electron-vite.mjs dev",
+    "dev:windowed": "cross-env HYTE_WINDOWED=1 node scripts/electron-vite.mjs dev",
+    "build": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && node scripts/electron-vite.mjs build",
+    "start": "node scripts/electron-vite.mjs preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "package": "npm run build && electron-builder --win --dir",
+    "dist": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "dev.bitofcode.hytepanel",
+    "productName": "Hyte Panel",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.4.0",
+    "cross-env": "^10.1.0",
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6"
+  }
+}
