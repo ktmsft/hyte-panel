@@ -17,9 +17,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   // Y70 Touch Infinite panel, portrait as mounted in the case. Matching accepts
   // either orientation, so this only has to name the two dimensions.
   displayMatch: { width: 682, height: 2560 },
-  // Frosted by default: the panel is far more interesting sitting over a live
-  // wallpaper than over its own flat background.
-  glassMode: 'frosted',
+  // Translucent cards over a sharp wallpaper. Frosted is available for anyone
+  // who wants the acrylic blur, but it frosts the gaps between cards too.
+  glassMode: 'clear',
   alwaysOnTop: true,
   alertsLayout: 'list',
   theme: DEFAULT_THEME,
@@ -72,7 +72,11 @@ function migrate(saved: LegacyConfig): Partial<AppConfig> {
   if ((saved.configVersion ?? 0) >= CONFIG_VERSION) return saved
 
   const next: Partial<AppConfig> = { ...saved, configVersion: CONFIG_VERSION }
-  next.glassMode = saved.glassMode ?? (saved.transparent === false ? 'solid' : 'frosted')
+  // v0's `transparent: true` meant exactly what Clear does now. Absent entirely,
+  // let the default flow through the merge rather than pinning a mode here.
+  if (saved.glassMode === undefined && saved.transparent !== undefined) {
+    next.glassMode = saved.transparent ? 'clear' : 'solid'
+  }
   if (saved.theme && saved.theme.preset === 'midnight' && saved.theme.cardOpacity === 1) {
     next.theme = DEFAULT_THEME
   }

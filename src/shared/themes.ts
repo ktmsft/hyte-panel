@@ -56,11 +56,29 @@ const BASE: Omit<ThemeConfig, 'preset'> = {
   textShadow: false
 }
 
+/** The default. Translucent cards sitting over a sharp wallpaper. */
+const GLASS: Omit<ThemeConfig, 'preset'> = {
+  ...BASE,
+  cardBackground: '#0a1017',
+  cardOpacity: 0.5,
+  cardBorder: '#46586b',
+  text: '#f4f8fc',
+  muted: '#c2ced9',
+  faint: '#93a2b0',
+  textShadow: true
+}
+
 export const THEME_PRESETS: ThemePreset[] = [
+  {
+    id: 'glass',
+    label: 'Glass',
+    note: 'The default. Half-opacity cards over a sharp wallpaper, with text shadows to hold legibility.',
+    theme: { ...GLASS }
+  },
   {
     id: 'frosted',
     label: 'Frosted',
-    note: 'The default. Tuned for the Frosted glass mode: cards sit as a darker pane over the acrylic blur.',
+    note: 'For the Frosted glass mode: a lighter tint, since acrylic is already blurring what is behind.',
     theme: {
       ...BASE,
       cardBackground: '#0d151f',
@@ -69,21 +87,6 @@ export const THEME_PRESETS: ThemePreset[] = [
       text: '#f5f9fd',
       muted: '#c8d4e0',
       faint: '#9aa8b6',
-      textShadow: true
-    }
-  },
-  {
-    id: 'glass',
-    label: 'Glass',
-    note: 'For the Clear glass mode. A heavier tint, since nothing is blurring the wallpaper for you.',
-    theme: {
-      ...BASE,
-      cardBackground: '#0a1017',
-      cardOpacity: 0.52,
-      cardBorder: '#3b4a5a',
-      text: '#f4f8fc',
-      muted: '#c2ced9',
-      faint: '#93a2b0',
       textShadow: true
     }
   },
@@ -143,7 +146,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   }
 ]
 
-export const DEFAULT_THEME: ThemeConfig = { preset: 'frosted', ...THEME_PRESETS[0].theme }
+export const DEFAULT_THEME: ThemeConfig = { preset: 'glass', ...GLASS }
 
 export function presetById(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((preset) => preset.id === id)

@@ -68,17 +68,15 @@ The panel is designed to sit on top of a live wallpaper rather than replace it. 
 
 | Mode | What it does | Trade |
 | --- | --- | --- |
-| **Frosted** (default) | Windows 11 acrylic blurs the wallpaper behind the panel | The gaps between cards are frosted too, not sharp |
-| **Clear** | Wallpaper stays sharp, cards are translucent over it | Nothing is blurred, so busy wallpapers fight the text |
+| **Clear** (default) | Wallpaper stays sharp, cards are translucent over it | Nothing is blurred, so busy wallpapers fight the text |
+| **Frosted** | Windows 11 acrylic blurs the wallpaper behind the panel | The gaps between cards are frosted too, not sharp |
 | **Solid** | The panel paints its own background | The wallpaper is ignored |
 
-Frosted is the only one that genuinely blurs. CSS `backdrop-filter` cannot do this: it samples the page's own backdrop, and behind a transparent window that is nothing at all. The blur has to come from the compositor, which means Windows' acrylic material.
+Frosted is the only one that genuinely blurs, and it is worth knowing why the other two cannot. CSS `backdrop-filter` samples the page's own backdrop, and behind a transparent window that is nothing at all, so it has no effect on the desktop underneath. Any real blur has to come from the compositor, which on Windows means the acrylic material, and acrylic applies to a whole window rather than to individual elements. Frosted cards over a sharp wallpaper is therefore not something a single window can do.
 
-Getting acrylic to apply has one counter-intuitive requirement: the window must **not** be `transparent: true`. Electron omits the layered-window flags when transparency is off, and those flags are exactly what stops DWM painting its material. Setting `backgroundColor` to `#00000000` then clears Chromium's own buffer so the acrylic shows through the page. See [src/main/index.ts](src/main/index.ts).
+If you do want Frosted, note one counter-intuitive requirement: the window must **not** be `transparent: true`. Electron omits the layered-window flags when transparency is off, and those flags are exactly what stops DWM painting its material. Setting `backgroundColor` to `#00000000` then clears Chromium's own buffer so the acrylic shows through the page. See [src/main/index.ts](src/main/index.ts). Acrylic also needs Windows 11 22H2 or newer with Transparency effects on.
 
-Acrylic needs Windows 11 22H2 or newer and Transparency effects switched on in Windows Settings. Clear mode is the fallback if either is missing.
-
-Card fills are stored as a solid colour plus a separate opacity, so you can dial a card down to a tint without losing its colour. Each glass mode has a matching theme preset: Frosted, Glass and Midnight. Changing glass mode rebuilds the window, which is why the panel blinks.
+Card fills are stored as a solid colour plus a separate opacity, so you can dial a card down to a tint without losing its colour. Each glass mode has a matching theme preset: Glass, Frosted and Midnight. Changing glass mode rebuilds the window, which is why the panel blinks.
 
 ## Theming
 
