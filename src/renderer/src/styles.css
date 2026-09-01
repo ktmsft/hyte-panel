@@ -28,6 +28,8 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* Drops the 300ms double-tap-zoom wait, so taps register immediately. */
+  touch-action: manipulation;
 }
 
 html,
@@ -106,6 +108,8 @@ button {
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
+  /* Scrollable, so it still needs to pan. */
+  touch-action: pan-y;
 }
 
 .card-body::-webkit-scrollbar {
