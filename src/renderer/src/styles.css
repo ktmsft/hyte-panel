@@ -1,6 +1,8 @@
 /*
  * The panel sits inside a lit case, so the whole design is dark and low-glow.
- * Sizing is in rem against a root font size driven by viewport height (main.tsx).
+ * It is mounted portrait (682 x 2560), so widgets stack rather than sitting in
+ * columns. Sizing is in rem against a root font size driven by viewport width,
+ * which is the tight dimension (main.tsx).
  */
 
 :root {
@@ -16,8 +18,8 @@
   --warn: #d29922;
   --err: #f85149;
 
-  --radius: 0.75rem;
-  --gap: 0.6rem;
+  --radius: 0.9rem;
+  --gap: 0.7rem;
 }
 
 * {
@@ -58,9 +60,12 @@ button {
 
 /* ---------- panel shell ---------- */
 
+/* Agenda and alerts take what they need. To-dos absorb the rest, which is
+   where 2560px of height actually earns something. */
 .panel-grid {
   display: grid;
-  grid-template-columns: 26rem 42rem minmax(20rem, 1fr) 38rem;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto minmax(20rem, 1fr) auto;
   gap: var(--gap);
   height: 100%;
   padding: var(--gap);
@@ -70,7 +75,7 @@ button {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 1.1rem 1.25rem;
+  padding: 1.4rem 1.5rem;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -78,7 +83,7 @@ button {
 }
 
 .card-title {
-  font-size: 0.82rem;
+  font-size: 1rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
@@ -86,8 +91,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   flex: none;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .card-body {
@@ -103,14 +109,14 @@ button {
 
 .empty {
   color: var(--faint);
-  font-size: 1.05rem;
-  padding: 1rem 0;
+  font-size: 1.4rem;
+  padding: 1.2rem 0;
 }
 
 /* ---------- clock ---------- */
 
 .clock-time {
-  font-size: 6.2rem;
+  font-size: 7.5rem;
   font-weight: 200;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -118,34 +124,35 @@ button {
 }
 
 .clock-seconds {
-  font-size: 2rem;
+  font-size: 2.4rem;
   color: var(--faint);
   font-weight: 200;
-  margin-left: 0.35rem;
+  margin-left: 0.4rem;
 }
 
 .clock-date {
-  font-size: 1.35rem;
+  font-size: 1.9rem;
   color: var(--muted);
-  margin-top: 0.35rem;
+  margin-top: 0.5rem;
 }
 
 .clock-spacer {
-  flex: 1;
+  height: 1.6rem;
+  flex: none;
 }
 
 .health-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.3rem 0;
-  font-size: 0.95rem;
+  gap: 0.7rem;
+  padding: 0.5rem 0;
+  font-size: 1.25rem;
   color: var(--muted);
 }
 
 .health-row .dot {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.7rem;
+  height: 0.7rem;
   border-radius: 50%;
   flex: none;
   background: var(--faint);
@@ -172,11 +179,11 @@ button {
 /* ---------- agenda ---------- */
 
 .agenda-group {
-  font-size: 0.78rem;
+  font-size: 0.95rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
-  margin: 0.9rem 0 0.4rem;
+  margin: 1.1rem 0 0.5rem;
 }
 
 .agenda-group:first-child {
@@ -185,8 +192,8 @@ button {
 
 .event {
   display: flex;
-  gap: 1rem;
-  padding: 0.5rem 0;
+  gap: 1.1rem;
+  padding: 0.9rem 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -196,27 +203,27 @@ button {
 
 .event-time {
   flex: none;
-  width: 7.5rem;
+  width: 9rem;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
-  font-size: 1.15rem;
+  font-size: 1.5rem;
 }
 
 .event-time .end {
   display: block;
   color: var(--faint);
-  font-size: 0.95rem;
+  font-size: 1.15rem;
 }
 
 .event-title {
-  font-size: 1.25rem;
+  font-size: 1.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .event-location {
-  font-size: 0.95rem;
+  font-size: 1.2rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -232,10 +239,10 @@ button {
 .task {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  /* 4rem is roughly 64px on the panel, comfortable for a fingertip. */
-  min-height: 4rem;
-  padding: 0.3rem 0;
+  gap: 1.1rem;
+  /* 5rem is roughly 80px on the panel, generous for a fingertip. */
+  min-height: 5rem;
+  padding: 0.4rem 0;
   border-bottom: 1px solid var(--line);
   width: 100%;
   text-align: left;
@@ -247,13 +254,13 @@ button {
 
 .task-box {
   flex: none;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2.6rem;
+  height: 2.6rem;
   border: 2px solid var(--faint);
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   display: grid;
   place-items: center;
-  font-size: 1.4rem;
+  font-size: 1.7rem;
   color: transparent;
 }
 
@@ -263,7 +270,7 @@ button {
 }
 
 .task-title {
-  font-size: 1.3rem;
+  font-size: 1.7rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -276,12 +283,12 @@ button {
 
 .task-add {
   flex: none;
-  margin-top: 0.6rem;
-  min-height: 3.4rem;
+  margin-top: 0.8rem;
+  min-height: 4.5rem;
   border: 1px dashed var(--line);
   border-radius: var(--radius);
   color: var(--muted);
-  font-size: 1.15rem;
+  font-size: 1.5rem;
   display: grid;
   place-items: center;
 }
@@ -292,9 +299,9 @@ button {
 
 .task-input {
   flex: none;
-  margin-top: 0.6rem;
+  margin-top: 0.8rem;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .task-input input {
@@ -305,8 +312,8 @@ button {
   border-radius: var(--radius);
   color: var(--text);
   font: inherit;
-  font-size: 1.2rem;
-  padding: 0.7rem 0.9rem;
+  font-size: 1.5rem;
+  padding: 0.8rem 1rem;
   -webkit-user-select: text;
   user-select: text;
 }
@@ -318,11 +325,11 @@ button {
 
 .task-input button {
   flex: none;
-  padding: 0 1.2rem;
+  padding: 0 1.4rem;
   background: var(--accent);
   color: #05121f;
   border-radius: var(--radius);
-  font-size: 1.15rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
@@ -331,9 +338,9 @@ button {
 .alert {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  min-height: 4.4rem;
-  padding: 0.4rem 0;
+  gap: 1.1rem;
+  min-height: 5.5rem;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -343,9 +350,9 @@ button {
 
 .alert-count {
   flex: none;
-  width: 4.2rem;
+  width: 5rem;
   text-align: right;
-  font-size: 2.4rem;
+  font-size: 3.2rem;
   font-weight: 300;
   font-variant-numeric: tabular-nums;
 }
@@ -359,11 +366,11 @@ button {
 }
 
 .alert-label {
-  font-size: 1.25rem;
+  font-size: 1.7rem;
 }
 
 .alert-note {
-  font-size: 0.92rem;
+  font-size: 1.2rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -377,20 +384,22 @@ button {
 /* ---------- chrome ---------- */
 
 .chip {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--warn);
   border: 1px solid var(--warn);
   border-radius: 999px;
-  padding: 0.1rem 0.5rem;
+  padding: 0.15rem 0.6rem;
+  white-space: nowrap;
 }
 
 .gear {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: var(--faint);
   padding: 0.3rem 0.5rem;
   margin: -0.3rem -0.5rem;
+  white-space: nowrap;
 }
 
 .gear:active {

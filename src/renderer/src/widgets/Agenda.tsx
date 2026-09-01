@@ -7,7 +7,7 @@ interface Props {
   health: Health
 }
 
-const MAX_EVENTS = 6
+const MAX_EVENTS = 8
 
 export function Agenda({ events, health }: Props) {
   const now = useNow(30_000)

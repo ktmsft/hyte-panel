@@ -10,8 +10,9 @@ import type { AppConfig } from '@shared/types'
 
 export const DEFAULT_CONFIG: AppConfig = {
   displayId: null,
-  // Y70 Touch Infinite native panel, landscape as mounted in the case.
-  displayMatch: { width: 2560, height: 682 },
+  // Y70 Touch Infinite panel, portrait as mounted in the case. Matching accepts
+  // either orientation, so this only has to name the two dimensions.
+  displayMatch: { width: 682, height: 2560 },
   sources: {
     gmail: { enabled: true },
     proton: { enabled: true },

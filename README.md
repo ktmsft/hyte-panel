@@ -2,17 +2,33 @@
 
 A dashboard for the HYTE Y70 Touch Infinite's built-in display: today's calendar, a to-do list you can tick with a fingertip, and notification counts for the accounts that actually matter.
 
-The case screen is an ordinary DisplayPort monitor (2560 x 682, 14.9", 10-point touch), so this is just an Electron app pinned fullscreen to it.
+The case screen is an ordinary DisplayPort monitor (14.9", 10-point touch), mounted portrait at 682 x 2560, so this is just an Electron app pinned fullscreen to it.
 
 ```
-+-----------+------------------+-------------------+--------------+
-| CLOCK     | AGENDA           | TO-DOS            | ALERTS       |
-| time/date | next few events  | tap to complete   | Gmail    3   |
-| source    | today / tomorrow | add inline        | Proton   1   |
-| health    | live event mark  |                   | Bluesky  12  |
-|           |                  |                   | Discord  4   |
-+-----------+------------------+-------------------+--------------+
++---------------------------+
+| 09:41         Settings    |
+| Monday, 1 September       |
+| . Gmail          2m ago   |
+| . Proton    unconfigured  |
++---------------------------+
+| AGENDA                    |
+| 10:15  Standup            |
+| 13:00  Design review      |
++---------------------------+
+| TO DO            3 open   |
+| [ ] Ship the panel shell  |
+| [ ] Wire Google OAuth     |
+| [x] Mount the panel       |
+|                           |
+| + Add a task              |
++---------------------------+
+| ALERTS                    |
+|   3  Gmail                |
+|  12  Bluesky              |
++---------------------------+
 ```
+
+To-dos take whatever height the other three do not, which is what makes 2560px of screen worth having.
 
 ## Status
 

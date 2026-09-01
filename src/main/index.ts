@@ -33,8 +33,10 @@ function createPanelWindow(): void {
   panelWindow = new BrowserWindow({
     x: WINDOWED ? undefined : x,
     y: WINDOWED ? undefined : y,
-    width: WINDOWED ? 1280 : width,
-    height: WINDOWED ? 341 : height,
+    // Windowed mode keeps the panel's portrait proportions at 3/8 scale so the
+    // layout can be judged on a desktop monitor.
+    width: WINDOWED ? 256 : width,
+    height: WINDOWED ? 960 : height,
     frame: WINDOWED,
     fullscreen: !WINDOWED,
     // Only pin above other windows once we are confident we are on the case panel,
