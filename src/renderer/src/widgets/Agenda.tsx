@@ -18,7 +18,7 @@ export function Agenda({ events, health }: Props) {
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, MAX_EVENTS)
 
-  // Group into Today / Tomorrow / weekday headings without repeating a heading.
+  // Today / Tomorrow / weekday, without repeating a heading.
   let lastGroup: string | null = null
 
   return (

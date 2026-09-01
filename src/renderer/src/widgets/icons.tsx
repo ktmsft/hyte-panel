@@ -1,11 +1,7 @@
 import type { JSX } from 'preact'
 import type { SourceId } from '@shared/types'
 
-/**
- * Simplified marks, not brand logos. They are drawn in currentColor so the
- * theme stays in charge, which means they have to be legible by silhouette
- * alone: envelope, padlock, butterfly, and a game-chat face.
- */
+/** Simplified marks, not brand logos. Drawn in currentColor to follow the theme. */
 
 type IconProps = { class?: string }
 
@@ -17,7 +13,7 @@ function Svg({ children, ...props }: IconProps & { children: JSX.Element | JSX.E
   )
 }
 
-/** Gmail: envelope with the fold picked out. */
+/** Gmail. */
 function Envelope(props: IconProps) {
   return (
     <Svg {...props}>
@@ -41,7 +37,7 @@ function Envelope(props: IconProps) {
   )
 }
 
-/** Proton: the privacy mailbox, so a padlock reads faster than a second envelope. */
+/** Proton. A padlock reads faster than a second envelope. */
 function Padlock(props: IconProps) {
   return (
     <Svg {...props}>
@@ -65,7 +61,7 @@ function Padlock(props: IconProps) {
   )
 }
 
-/** Bluesky: butterfly. */
+/** Bluesky. */
 function Butterfly(props: IconProps) {
   return (
     <Svg {...props}>
@@ -77,12 +73,10 @@ function Butterfly(props: IconProps) {
   )
 }
 
-/** Discord: the chat face. */
+/** Discord. */
 function ChatFace(props: IconProps) {
   return (
     <Svg {...props}>
-      {/* Stroked rather than filled, so the eyes read as eyes over a wallpaper
-          instead of needing an opaque colour punched through the face. */}
       <path
         d="M15.4 5.4a15.6 15.6 0 0 1 3.9 1.2c1.5 2.8 2.4 6.3 2.1 10.4a13.5 13.5 0 0 1-4.2 2.1l-.9-1.4c.8-.3 1.5-.7 2.1-1.1a11.3 11.3 0 0 1-12.8 0c.6.4 1.3.8 2.1 1.1l-.9 1.4a13.5 13.5 0 0 1-4.2-2.1c-.2-3.5.5-7 2.3-10.4a15.6 15.6 0 0 1 3.9-1.2"
         stroke="currentColor"

@@ -4,21 +4,16 @@ import { dirname, join } from 'node:path'
 import type { AppConfig } from '@shared/types'
 import { DEFAULT_THEME } from '@shared/themes'
 
-/**
- * Settings live as plain JSON in userData. Credentials do not live here, they go
- * through secrets.ts and are encrypted with the OS keystore.
- */
+// Settings live as plain JSON in userData. Credentials go through secrets.ts.
 
 export const CONFIG_VERSION = 1
 
 export const DEFAULT_CONFIG: AppConfig = {
   configVersion: CONFIG_VERSION,
   displayId: null,
-  // Y70 Touch Infinite panel, portrait as mounted in the case. Matching accepts
-  // either orientation, so this only has to name the two dimensions.
+  // Portrait as mounted. Matching accepts either orientation.
   displayMatch: { width: 682, height: 2560 },
-  // Translucent cards over a sharp wallpaper. Frosted is available for anyone
-  // who wants the acrylic blur, but it frosts the gaps between cards too.
+  // Frosted blurs the gaps between cards too, so Clear is the default.
   glassMode: 'clear',
   alwaysOnTop: true,
   alertsLayout: 'list',
@@ -30,8 +25,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     discord: { enabled: true }
   },
   taskProvider: 'local',
-  // The panel should come back on its own after a reboot. That is the whole
-  // point of something mounted in the case.
+  // Something mounted in the case should come back on its own.
   autostart: true,
   dim: { enabled: false, startHour: 23, endHour: 7, level: 0.35 }
 }
@@ -62,18 +56,12 @@ interface LegacyConfig extends Partial<AppConfig> {
   transparent?: boolean
 }
 
-/**
- * v0 had a `transparent` boolean and defaulted to a solid Midnight theme. The
- * glass modes replace the boolean, and anyone still on the untouched default
- * theme is moved to Frosted, since that is what the new default looks like.
- * A theme the user actually customised is left exactly as they left it.
- */
+/** v0 had a `transparent` boolean and a solid default theme. */
 function migrate(saved: LegacyConfig): Partial<AppConfig> {
   if ((saved.configVersion ?? 0) >= CONFIG_VERSION) return saved
 
   const next: Partial<AppConfig> = { ...saved, configVersion: CONFIG_VERSION }
-  // v0's `transparent: true` meant exactly what Clear does now. Absent entirely,
-  // let the default flow through the merge rather than pinning a mode here.
+  // v0's transparent:true is what Clear does now.
   if (saved.glassMode === undefined && saved.transparent !== undefined) {
     next.glassMode = saved.transparent ? 'clear' : 'solid'
   }

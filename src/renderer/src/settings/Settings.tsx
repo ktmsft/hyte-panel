@@ -8,7 +8,8 @@ import type {
   TaskProviderId,
   ThemeConfig
 } from '@shared/types'
-import { FONT_STACKS, THEME_PRESETS } from '@shared/themes'
+import { FONT_STACKS, presetById, THEME_PRESETS } from '@shared/themes'
+import { isLight } from '@/lib/theme'
 
 const SOURCE_LABELS: Record<SourceId, string> = {
   gmail: 'Gmail',
@@ -17,7 +18,7 @@ const SOURCE_LABELS: Record<SourceId, string> = {
   discord: 'Discord'
 }
 
-/** Sources whose adapters do not exist yet. Shown, but honest about it. */
+/** Adapters that do not exist yet. */
 const NOT_YET_WIRED: Partial<Record<SourceId, string>> = {
   gmail: 'Adapter lands in phase 2',
   proton: 'Adapter lands in phase 3',
@@ -25,14 +26,13 @@ const NOT_YET_WIRED: Partial<Record<SourceId, string>> = {
   discord: 'Needs the toast helper, phase 5'
 }
 
-/** The colours worth exposing individually once a preset is not quite right. */
 const COLOR_FIELDS = [
+  ['cardBackground', 'Glass tint'],
   ['text', 'Text'],
   ['muted', 'Secondary text'],
   ['faint', 'Labels'],
   ['accent', 'Accent'],
-  ['cardBackground', 'Card fill'],
-  ['cardBorder', 'Card border'],
+  ['cardBorder', 'Glass edge'],
   ['background', 'Page background'],
   ['ok', 'Healthy'],
   ['warn', 'Stale'],
@@ -48,11 +48,9 @@ const GLASS_MODES = [
 ] as const satisfies readonly (readonly [GlassMode, string])[]
 
 const GLASS_NOTES: Record<GlassMode, string> = {
-  frosted:
-    'Windows 11 acrylic blurs the wallpaper behind the whole panel, which is the only way to actually blur it. The trade is that the gaps between cards are frosted too, rather than showing the wallpaper sharp. Needs Transparency effects on in Windows Settings.',
-  clear:
-    'The wallpaper stays sharp everywhere and the cards are translucent over it. Nothing is blurred, so raise the card opacity if a busy wallpaper is fighting the text.',
-  solid: 'The panel paints its own background and ignores the wallpaper entirely.'
+  frosted: 'Windows acrylic blurs the wallpaper, but frosts the gaps between cards too.',
+  clear: 'Wallpaper stays sharp under translucent cards. Raise card opacity if text is fighting it.',
+  solid: 'Paints its own background and ignores the wallpaper.'
 }
 
 export function Settings() {
@@ -72,7 +70,7 @@ export function Settings() {
 
   const { theme } = config
 
-  /** Any hand-edited value means this is no longer one of the presets. */
+  /** Any hand edit means this is no longer a preset. */
   async function patchTheme(update: Partial<ThemeConfig>): Promise<void> {
     await patch({ theme: { ...theme, ...update, preset: 'custom' } })
   }
@@ -80,15 +78,24 @@ export function Settings() {
   async function patchColor(key: ColorKey, value: string): Promise<void> {
     const next: ThemeConfig = { ...theme, preset: 'custom' }
     next[key] = value
+
+    // Crossing the light/dark line drags the ink with it, or off-white glass
+    // would keep near-white text and be unreadable.
+    if (key === 'cardBackground' && isLight(value) !== isLight(theme.cardBackground)) {
+      const ink = presetById(isLight(value) ? 'frost-white' : 'glass')
+      if (ink) {
+        const { text, muted, faint, accent, cardBorder, ok, warn, err, textShadow } = ink.theme
+        Object.assign(next, { text, muted, faint, accent, cardBorder, ok, warn, err, textShadow })
+      }
+    }
+
     await patch({ theme: next })
   }
 
   return (
     <div class="settings">
       <h1>Hyte Panel</h1>
-      <p class="lede">
-        Settings open here on your desktop, not on the case display, so you can use a real keyboard.
-      </p>
+      <p class="lede">On your desktop, not the panel, so you have a keyboard.</p>
 
       <section>
         <h2>Display</h2>
@@ -108,9 +115,8 @@ export function Settings() {
           </button>
         ))}
         <p class="hint">
-          Auto-detection looks for a {config.displayMatch.width} x {config.displayMatch.height} panel in
-          either orientation, then for any non-primary display more than three times longer than it is
-          wide. Pick one here to pin it.
+          Auto-detection looks for {config.displayMatch.width} x {config.displayMatch.height} in either
+          orientation, then any non-primary display three times longer than it is wide.
         </p>
       </section>
 
@@ -142,11 +148,8 @@ export function Settings() {
           </label>
         </div>
         <p class="hint">
-          The panel is a borderless window at the display's exact bounds rather than a true fullscreen
-          window, because Wallpaper Engine pauses the wallpaper under a focused fullscreen app. Changing
-          the glass mode rebuilds the window, which is why the panel blinks. Each mode has a matching
-          theme preset below: <strong>Frosted</strong>, <strong>Glass</strong> and{' '}
-          <strong>Midnight</strong>.
+          Never a true fullscreen window: Wallpaper Engine pauses under one. Changing glass mode
+          rebuilds the window, so the panel blinks.
         </p>
       </section>
 
@@ -169,6 +172,11 @@ export function Settings() {
             </button>
           ))}
         </div>
+
+        <p class="hint">
+          <strong>Glass tint</strong> is the colour of the panes. Moving it across the light/dark line
+          takes the text with it, so off-white glass gets dark text.
+        </p>
 
         <div class="color-grid">
           {COLOR_FIELDS.map(([key, label]) => (
@@ -285,8 +293,8 @@ export function Settings() {
           </select>
         </div>
         <p class="hint">
-          Google Tasks rides the same sign-in as Calendar. Microsoft To Do needs its own app registration.
-          Both land in phase 4; the local list works today.
+          Google Tasks rides the Calendar sign-in. Microsoft To Do needs its own app registration. Both
+          land in phase 4.
         </p>
       </section>
 
@@ -317,10 +325,7 @@ export function Settings() {
             {String(config.dim.endHour).padStart(2, '0')}:00
           </span>
         </div>
-        <p class="hint">
-          HYTE Nexus Link also wants this display. Turn its screen feature off if the two fight over
-          which one is on top.
-        </p>
+        <p class="hint">Nexus Link wants this display too. Turn its screen feature off if they fight.</p>
       </section>
 
       <section>

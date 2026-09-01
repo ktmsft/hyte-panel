@@ -6,10 +6,6 @@ interface Props {
   onOpenSettings: () => void
 }
 
-/**
- * Time, date, and nothing else. Source health used to live here too, but the
- * alerts card already says the same thing lower down the panel.
- */
 export function Clock({ mock, onOpenSettings }: Props) {
   const now = useNow(1000)
 

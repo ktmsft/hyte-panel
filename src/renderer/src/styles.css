@@ -1,15 +1,6 @@
-/*
- * The panel sits inside a lit case, so the whole design is dark and low-glow.
- * It is mounted portrait (682 x 2560), so widgets stack rather than sitting in
- * columns. Sizing is in rem against a root font size driven by viewport width,
- * which is the tight dimension (main.tsx).
- */
+/* Portrait 682 x 2560. Sizing is rem against a width-derived root font size. */
 
-/*
- * These are fallbacks for the first paint. lib/theme.ts overwrites every one of
- * them from config, so editing a colour in settings repaints the panel with no
- * reload and no re-render.
- */
+/* Fallbacks for the first paint. lib/theme.ts overwrites these from config. */
 :root {
   --bg: #06080b;
   --card-bg: #0e141b;
@@ -23,8 +14,10 @@
   --err: #f85149;
   --font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --text-shadow: none;
+  /* Derived in lib/theme.ts from the theme's own colours. */
+  --on-accent: #05121f;
+  --card-highlight: rgba(255, 255, 255, 0.09);
 
-  /* A tint rather than a colour, so it works over any card fill or wallpaper. */
   --panel-raised: rgba(255, 255, 255, 0.07);
   --radius: 0.9rem;
   --gap: 0.7rem;
@@ -51,8 +44,6 @@ body {
   font-family: var(--font-family);
   font-size: 1rem;
   line-height: 1.35;
-  /* Off unless the theme asks for it. Earns its keep over a busy wallpaper,
-     where a card tint alone does not carry small text. */
   text-shadow: var(--text-shadow);
 }
 
@@ -71,8 +62,7 @@ button {
 
 /* ---------- panel shell ---------- */
 
-/* Agenda and alerts take what they need. To-dos absorb the rest, which is
-   where 2560px of height actually earns something. */
+/* To-dos absorb the leftover height. */
 .panel-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -86,10 +76,9 @@ button {
   background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  /* A one-pixel top highlight and a soft drop shadow. These are the cues that
-     read as a pane of glass rather than a flat translucent rectangle. */
+  /* Top highlight and drop shadow: what reads as glass. */
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 1px 0 var(--card-highlight),
     0 2px 14px rgba(0, 0, 0, 0.3);
   padding: 1.4rem 1.5rem;
   display: flex;
@@ -216,7 +205,7 @@ button {
   display: flex;
   align-items: center;
   gap: 1.1rem;
-  /* 5rem is roughly 80px on the panel, generous for a fingertip. */
+  /* ~80px on the panel. */
   min-height: 5rem;
   padding: 0.4rem 0;
   border-bottom: 1px solid var(--line);
@@ -303,7 +292,7 @@ button {
   flex: none;
   padding: 0 1.4rem;
   background: var(--accent);
-  color: #05121f;
+  color: var(--on-accent);
   border-radius: var(--radius);
   font-size: 1.5rem;
   font-weight: 600;
@@ -357,7 +346,7 @@ button {
   color: var(--err);
 }
 
-/* Icon tiles, three across. No labels: the silhouettes carry it. */
+/* Icon tiles, three across. The silhouettes carry it, so no labels. */
 .alert-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -375,7 +364,7 @@ button {
   color: var(--faint);
 }
 
-/* Only a source with something waiting gets the accent. Everything else recedes. */
+/* Only a source with something waiting gets the accent. */
 .alert-tile.unread {
   color: var(--accent);
   border-color: var(--accent);
@@ -406,14 +395,13 @@ button {
   font-variant-numeric: tabular-nums;
   border-radius: 999px;
   background: var(--accent);
-  /* Fixed rather than themed: --bg is `transparent` in wallpaper mode, which
-     would make the number vanish. Every preset accent is a light colour. */
-  color: #05121f;
+  /* Not --bg: that is `transparent` in the glass modes. */
+  color: var(--on-accent);
   font-weight: 600;
   text-shadow: none;
 }
 
-/* A source that cannot report a number gets a marker, not a fake zero. */
+/* A marker, not a fake zero. */
 .alert-badge.muted {
   background: transparent;
   color: var(--faint);
@@ -445,7 +433,7 @@ button {
   color: var(--text);
 }
 
-/* ---------- settings window (desktop, real keyboard) ---------- */
+/* ---------- settings window ---------- */
 
 .settings {
   cursor: auto;
@@ -656,6 +644,6 @@ button {
 
 .segmented button.active {
   background: var(--accent);
-  color: #05121f;
+  color: var(--on-accent);
   font-weight: 600;
 }

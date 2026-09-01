@@ -1,11 +1,7 @@
 import { screen } from 'electron'
 import type { AppConfig, DisplayInfo } from '@shared/types'
 
-/**
- * Electron reports display sizes in device-independent pixels, so a panel on a
- * scaled desktop does not report its native resolution. Multiplying back by the
- * scale factor gives us something stable to match against.
- */
+/** Electron reports DIPs, so scale back up to match native resolution. */
 function nativeSize(display: Electron.Display): { width: number; height: number } {
   const scale = display.scaleFactor || 1
   return {
@@ -25,18 +21,14 @@ function matchesTarget(display: Electron.Display, target: { width: number; heigh
   )
 }
 
-/** A case panel is unusually wide for its height. Nothing else on a desk looks like this. */
+/** A case panel is far longer than it is wide. Nothing else on a desk is. */
 function looksLikeAPanel(display: Electron.Display): boolean {
   const { width, height } = nativeSize(display)
   const aspect = Math.max(width, height) / Math.min(width, height)
   return aspect >= 3
 }
 
-/**
- * Resolution order: the display the user pinned, then an exact size match, then
- * anything with panel-like proportions that is not the primary monitor. Falls
- * back to primary so the app always opens somewhere visible.
- */
+/** Pinned display, then exact size, then shape, then primary as a fallback. */
 export function findPanelDisplay(config: AppConfig): { display: Electron.Display; detected: boolean } {
   const displays = screen.getAllDisplays()
   const primary = screen.getPrimaryDisplay()

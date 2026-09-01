@@ -1,15 +1,10 @@
 import type { ThemeConfig } from './types'
 
-/**
- * Presets are complete themes, not partial overrides, so picking one always
- * lands somewhere coherent. Editing any colour flips `preset` to 'custom' and
- * the values stay exactly as the user left them.
- */
-
+// Presets are complete themes. Editing any colour flips `preset` to 'custom'.
 export interface ThemePreset {
   id: string
   label: string
-  /** A one-line note shown under the swatches in settings. */
+  /** Shown under the swatches in settings. */
   note: string
   theme: Omit<ThemeConfig, 'preset'>
 }
@@ -56,7 +51,23 @@ const BASE: Omit<ThemeConfig, 'preset'> = {
   textShadow: false
 }
 
-/** The default. Translucent cards sitting over a sharp wallpaper. */
+/** The default. Off-white glass with dark ink, over a sharp wallpaper. */
+const FROST_WHITE: Omit<ThemeConfig, 'preset'> = {
+  ...BASE,
+  cardBackground: '#f4f6f9',
+  cardOpacity: 0.58,
+  cardBorder: '#ffffff',
+  text: '#0e1620',
+  muted: '#3c4a58',
+  faint: '#68757f',
+  accent: '#0b5ed7',
+  ok: '#1a7f37',
+  warn: '#9a6700',
+  err: '#cf222e',
+  textShadow: false
+}
+
+/** The dark counterpart. Referenced when the glass tint crosses back over. */
 const GLASS: Omit<ThemeConfig, 'preset'> = {
   ...BASE,
   cardBackground: '#0a1017',
@@ -70,15 +81,40 @@ const GLASS: Omit<ThemeConfig, 'preset'> = {
 
 export const THEME_PRESETS: ThemePreset[] = [
   {
+    id: 'frost-white',
+    label: 'Frost White',
+    note: 'The default. Off-white glass, dark ink.',
+    theme: { ...FROST_WHITE }
+  },
+  {
     id: 'glass',
-    label: 'Glass',
-    note: 'The default. Half-opacity cards over a sharp wallpaper, with text shadows to hold legibility.',
+    label: 'Smoke',
+    note: 'Charcoal panes, light text.',
     theme: { ...GLASS }
+  },
+  {
+    id: 'parchment',
+    label: 'Parchment',
+    note: 'Warm ivory glass, dark ink.',
+    theme: {
+      ...BASE,
+      cardBackground: '#f7f2e8',
+      cardOpacity: 0.58,
+      cardBorder: '#fffaf0',
+      text: '#1c1710',
+      muted: '#4d4437',
+      faint: '#7a6f5e',
+      accent: '#a15c00',
+      ok: '#2c6e2f',
+      warn: '#8a5a00',
+      err: '#b3261e',
+      textShadow: false
+    }
   },
   {
     id: 'frosted',
     label: 'Frosted',
-    note: 'For the Frosted glass mode: a lighter tint, since acrylic is already blurring what is behind.',
+    note: 'A lighter tint, for the Frosted glass mode.',
     theme: {
       ...BASE,
       cardBackground: '#0d151f',
@@ -93,7 +129,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   {
     id: 'midnight',
     label: 'Midnight',
-    note: 'Cool grey on near-black, fully solid cards. Pair with the Solid glass mode.',
+    note: 'Cool grey on near-black, solid cards.',
     theme: { ...BASE }
   },
   {
@@ -146,7 +182,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   }
 ]
 
-export const DEFAULT_THEME: ThemeConfig = { preset: 'glass', ...GLASS }
+export const DEFAULT_THEME: ThemeConfig = { preset: 'frost-white', ...FROST_WHITE }
 
 export function presetById(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((preset) => preset.id === id)

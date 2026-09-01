@@ -8,12 +8,12 @@ interface Props {
   layout: AlertsLayout
 }
 
-/** A source only has a real number to show when it has actually reached the service. */
+/** Only a source that reached its service has a real number. */
 function hasValue(source: SourceState): boolean {
   return source.health === 'ok' || source.health === 'stale'
 }
 
-/** What the row says under the label, depending on how healthy the source is. */
+/** The line under the label. */
 function note(source: SourceState, nowMs: number): { text: string; error: boolean } {
   switch (source.health) {
     case 'ok':

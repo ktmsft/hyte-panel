@@ -1,19 +1,13 @@
 import type { PanelState, SourceId, SourceState, Task } from '@shared/types'
 import { getConfig } from './config'
 
-/**
- * The single source of truth the renderer draws from. Phase 1 fills it with
- * placeholder data so the layout can be judged on the real panel before any
- * account is connected. Phases 2 to 5 replace each block with live adapters.
- */
-
 type Listener = (state: PanelState) => void
 
 const listeners = new Set<Listener>()
 
 /**
- * Built on first read rather than at import time. Config lives under
- * app.getPath('userData'), which is not safe to touch while modules load.
+ * What the renderer draws. Placeholder data until the adapters land.
+ * Built lazily: app.getPath('userData') is not safe at import time.
  */
 let state: PanelState | null = null
 
@@ -41,7 +35,7 @@ function buildMockState(): PanelState {
     message: 'Not connected yet'
   }))
 
-  // Give a couple of tiles sample values so the layout is judged with real ink on it.
+  // A couple of real values so the layout is judged with ink on it.
   sources[0] = { ...sources[0], health: 'ok', count: 3, checkedAt: iso(-1), message: undefined }
   sources[2] = { ...sources[2], health: 'stale', count: 12, checkedAt: iso(-46) }
 
@@ -86,7 +80,7 @@ export function subscribe(listener: Listener): () => void {
   return () => listeners.delete(listener)
 }
 
-/** Placeholder task mutations so the widget is interactive before phase 4 lands. */
+/** Placeholder mutations so the widget works before phase 4. */
 export function toggleTask(id: string): PanelState {
   return updateState({
     tasks: getState().tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t))

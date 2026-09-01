@@ -1,133 +1,77 @@
 # Hyte Panel
 
-A dashboard for the HYTE Y70 Touch Infinite's built-in display: today's calendar, a to-do list you can tick with a fingertip, and notification counts for the accounts that actually matter.
+A dashboard for the HYTE Y70 Touch Infinite's built-in display: calendar, to-dos, and notification counts.
 
-The case screen is an ordinary DisplayPort monitor (14.9", 10-point touch), mounted portrait at 682 x 2560, so this is just an Electron app pinned fullscreen to it.
-
-```
-+---------------------------+
-| 09:41         Settings    |
-| Monday, 1 September       |
-| . Gmail          2m ago   |
-| . Proton    unconfigured  |
-+---------------------------+
-| AGENDA                    |
-| 10:15  Standup            |
-| 13:00  Design review      |
-+---------------------------+
-| TO DO            3 open   |
-| [ ] Ship the panel shell  |
-| [ ] Wire Google OAuth     |
-| [x] Mount the panel       |
-|                           |
-| + Add a task              |
-+---------------------------+
-| ALERTS                    |
-|   3  Gmail                |
-|  12  Bluesky              |
-+---------------------------+
-```
-
-To-dos take whatever height the other three do not, which is what makes 2560px of screen worth having.
+The case screen is an ordinary DisplayPort monitor mounted portrait at 682 x 2560, so this is just an Electron app pinned to it.
 
 ## Status
 
-Phase 1 (the shell) is working: display detection, the borderless panel window, the four-widget layout, theming, Wallpaper Engine transparency, a settings window, and autostart. Every data source still shows placeholder values, marked in the UI with a `PREVIEW DATA` chip.
+Phase 1 done. Data sources are still placeholders, marked `PREVIEW DATA` in the UI.
 
 | Phase | Scope | State |
 | --- | --- | --- |
-| 1 | Shell, display detection, layout, theming, settings | Done |
-| 2 | Google OAuth, Calendar agenda, Gmail unread | Next |
-| 3 | Bluesky and Proton Mail adapters | Planned |
-| 4 | Task backends and the on-screen keyboard | Planned |
+| 1 | Shell, display detection, layout, theming | Done |
+| 2 | Google OAuth, Calendar, Gmail | Next |
+| 3 | Bluesky, Proton | Planned |
+| 4 | Task backends, on-screen keyboard | Planned |
 | 5 | Windows notification listener, Discord | Planned |
-| 6 | Packaging, overnight dimming, burn-in drift | Planned |
+| 6 | Packaging, overnight dimming | Planned |
 
-## Running it
+## Running
 
 ```sh
 npm install
-npm run dev            # fullscreen on the detected case panel
-npm run dev:windowed   # a small desktop window, for working on the layout
-npm run build          # typecheck both projects and bundle
+npm run dev            # borderless on the case panel
+npm run dev:windowed   # small window for layout work
+npm run build
 ```
 
-`npm run dev` is the real thing: a borderless window at the case display's exact bounds, no title bar, no taskbar button, no Alt+Tab entry, no cursor. `npm run dev:windowed` is a small proportional window for working on the layout without taking over the panel.
+Settings open on the primary monitor, since the panel has no keyboard.
 
-Settings open on your **primary** monitor, not on the case display, because typing an app password on a 682px-wide on-screen keyboard is not a reasonable thing to ask of anyone.
+VS Code terminals export `ELECTRON_RUN_AS_NODE=1`, which makes Electron boot as plain Node. `scripts/electron-vite.mjs` strips it.
 
-If the panel opens on the wrong screen, pick the right one in settings. Auto-detection looks for a 682 x 2560 display in either orientation, then any non-primary display more than three times longer than it is wide.
+## Glass modes
 
-## Wallpaper Engine
+| Mode | Behaviour |
+| --- | --- |
+| **Clear** (default) | Translucent cards, wallpaper stays sharp |
+| **Frosted** | Windows 11 acrylic blurs behind the whole window, gaps included |
+| **Solid** | Paints its own background |
 
-The panel is designed to sit on top of a live wallpaper rather than replace it. Two things make that work.
+Frosted needs `transparent: false` plus `backgroundColor: '#00000000'`. Setting `transparent: true` blocks the acrylic. CSS `backdrop-filter` cannot blur the desktop, so frosted cards over a sharp wallpaper is not possible in one window.
 
-**It is never a true fullscreen window.** Wallpaper Engine pauses the wallpaper under a focused fullscreen application, so the panel is a borderless window sized to the display's exact bounds instead. It looks identical and the wallpaper keeps running. If Wallpaper Engine still pauses, add an exception under its [application rules](https://help.wallpaperengine.io/en/functionality/applicationrules.html).
-
-**There are three glass modes**, and the difference between them is worth understanding.
-
-| Mode | What it does | Trade |
-| --- | --- | --- |
-| **Clear** (default) | Wallpaper stays sharp, cards are translucent over it | Nothing is blurred, so busy wallpapers fight the text |
-| **Frosted** | Windows 11 acrylic blurs the wallpaper behind the panel | The gaps between cards are frosted too, not sharp |
-| **Solid** | The panel paints its own background | The wallpaper is ignored |
-
-Frosted is the only one that genuinely blurs, and it is worth knowing why the other two cannot. CSS `backdrop-filter` samples the page's own backdrop, and behind a transparent window that is nothing at all, so it has no effect on the desktop underneath. Any real blur has to come from the compositor, which on Windows means the acrylic material, and acrylic applies to a whole window rather than to individual elements. Frosted cards over a sharp wallpaper is therefore not something a single window can do.
-
-If you do want Frosted, note one counter-intuitive requirement: the window must **not** be `transparent: true`. Electron omits the layered-window flags when transparency is off, and those flags are exactly what stops DWM painting its material. Setting `backgroundColor` to `#00000000` then clears Chromium's own buffer so the acrylic shows through the page. See [src/main/index.ts](src/main/index.ts). Acrylic also needs Windows 11 22H2 or newer with Transparency effects on.
-
-Card fills are stored as a solid colour plus a separate opacity, so you can dial a card down to a tint without losing its colour. Each glass mode has a matching theme preset: Glass, Frosted and Midnight. Changing glass mode rebuilds the window, which is why the panel blinks.
+The panel is never a true fullscreen window, because Wallpaper Engine pauses the wallpaper under one.
 
 ## Theming
 
-Every colour is a CSS custom property written from config at runtime, so changes repaint immediately with no reload. Settings give you six presets (Frosted, Glass, Midnight, Carbon, Ember, Mint), then individual pickers for text, secondary text, labels, accent, card fill, card border, page background, and the three health colours. Editing any of them flips the theme to `custom` and keeps your values.
+Colours are CSS custom properties written from config, so edits repaint live. Presets, per-colour pickers, font, text size, card opacity, text shadow.
 
-Also configurable: font (Segoe UI, Bahnschrift condensed, Cascadia Mono, Georgia), overall text size, card opacity, and the text shadow.
+Moving the glass tint across the light/dark line takes the ink with it, so off-white glass gets dark text.
 
-## Alert layouts
+## Sources
 
-Two, switchable in settings:
-
-- **Rows with text**, the default: unread count, source name, and the newest item or the reason it cannot report.
-- **Icon tiles, three across**: silhouette per platform with a count badge, no labels. The icons are drawn in `currentColor` so they follow the theme, which means they have to read by shape alone: envelope, padlock, butterfly, chat face.
-
-### A note on VS Code terminals
-
-VS Code exports `ELECTRON_RUN_AS_NODE=1` to its child processes. Electron honours it and boots as plain Node, and then `require('electron')` returns a file path instead of the API. `scripts/electron-vite.mjs` strips the variable before launching, so the npm scripts work the same from any terminal.
-
-## What each source needs
-
-| Source | How it reads | Setup |
+| Source | Reads via | Needs |
 | --- | --- | --- |
-| Google Calendar | Calendar API, 5 min poll | Google Cloud project, desktop OAuth client |
-| Gmail | `labels.get(INBOX)` unread count, 60s | same project |
-| Proton Mail | Proton Mail Bridge local IMAP, IDLE push | Bridge running, paid Proton plan |
-| Bluesky | `getUnreadCount`, 60s | an app password, never your real one |
-| Discord | Windows notification listener | sparse-packaged helper, see below |
+| Calendar, Gmail | Google APIs | Cloud project, consent screen **In production** |
+| Proton | Bridge local IMAP | paid Proton plan |
+| Bluesky | `getUnreadCount` | app password |
+| Discord | Windows toast listener | sparse MSIX helper |
 
-Two of these need explaining.
-
-**Publish the Google consent screen to "In production".** Left in "Testing", Google revokes every refresh token after 7 days, which means re-authorising the panel weekly forever. An unverified production app shows a warning screen once and is capped at 100 users, which is ample for one person.
-
-**Discord has no supported way to read your own unread count.** The RPC scope that exposes it (`rpc.notifications.read`) requires Discord to whitelist your application, and user-token "self-bots" violate their terms and risk the account. So Discord comes in through `UserNotificationListener` instead, a small .NET helper that reads Windows toast notifications system-wide and pipes them to the panel. That API refuses to run without package identity, so the helper ships with a sparse MSIX package. It is the one piece that can fail for environmental reasons, which is why nothing else depends on it: if it cannot attach, the Discord tile reports "setup needed" and the rest of the panel carries on.
+Two gotchas. A Google consent screen left in **Testing** revokes refresh tokens every 7 days. And Discord has no supported way to read your own unread count, so it arrives through `UserNotificationListener` instead.
 
 ## Layout
 
 ```
-src/main/        Node side. Owns credentials, polling, and the helper process.
-src/preload/     The contextBridge. The renderer sees this and nothing more.
-src/renderer/    Preact UI. Never handles a token.
-src/shared/      Types and IPC channel names used by both sides.
-helper/          .NET notification listener (phase 5).
+src/main/      Node. Credentials, polling, helper process.
+src/preload/   contextBridge.
+src/renderer/  Preact UI. Never sees a token.
+src/shared/    Types and IPC names.
+helper/        .NET notification listener (phase 5).
 ```
 
-Sizing is in `rem` against a root font size derived from viewport height, so the same layout holds on the panel and in a small dev window without media queries.
+Credentials are encrypted with `safeStorage` under `userData`, never in the repo.
 
-Credentials never go in this repo. Tokens and passwords are encrypted with the OS keystore via Electron's `safeStorage` and stored under `userData`.
-
-## Note on Nexus Link
-
-HYTE's Nexus Link normally runs fullscreen on this display. Running Hyte Panel covers it; fan and RGB control still work from the Nexus Link window on your desktop. Turn off its display feature if the two start competing for the foreground.
+Nexus Link also wants this display. Turn its screen feature off if the two fight.
 
 ## Licence
 

@@ -1,8 +1,12 @@
 import type { GlassMode, ThemeConfig } from '@shared/types'
 
-/** Card fills are stored as solid hex plus a separate opacity, so the colour
- *  survives being dialled down to a tint over a wallpaper. */
-function hexToRgba(hex: string, alpha: number): string {
+interface Rgb {
+  r: number
+  g: number
+  b: number
+}
+
+function parseHex(hex: string): Rgb | null {
   const value = hex.replace('#', '').trim()
   const full =
     value.length === 3
@@ -14,21 +18,36 @@ function hexToRgba(hex: string, alpha: number): string {
   const r = Number.parseInt(full.slice(0, 2), 16)
   const g = Number.parseInt(full.slice(2, 4), 16)
   const b = Number.parseInt(full.slice(4, 6), 16)
-  if ([r, g, b].some(Number.isNaN)) return hex
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  return [r, g, b].some(Number.isNaN) ? null : { r, g, b }
 }
 
-/**
- * Writes the theme onto the document as custom properties. Every rule in
- * styles.css reads these, so a change here repaints the whole panel with no
- * re-render and no reload.
- */
+function hexToRgba(hex: string, alpha: number): string {
+  const rgb = parseHex(hex)
+  if (!rgb) return hex
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`
+}
+
+/** Relative luminance, so light glass and dark glass can be told apart. */
+function luminance(hex: string): number {
+  const rgb = parseHex(hex)
+  if (!rgb) return 0
+  const channels = [rgb.r, rgb.g, rgb.b].map((value) => {
+    const c = value / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+}
+
+export function isLight(hex: string): boolean {
+  return luminance(hex) > 0.45
+}
+
+/** Writes the theme as CSS custom properties. Repaints with no re-render. */
 export function applyTheme(theme: ThemeConfig, glassMode: GlassMode): void {
   const root = document.documentElement
   const set = (name: string, value: string): void => root.style.setProperty(name, value)
 
-  // Anything but solid needs the page itself to have no background, so either
-  // the wallpaper (clear) or the acrylic material (frosted) can show through.
+  // Only Solid paints a page background. The rest show what is behind.
   set('--bg', glassMode === 'solid' ? theme.background : 'transparent')
   set('--card-bg', hexToRgba(theme.cardBackground, theme.cardOpacity))
   set('--line', theme.cardBorder)
@@ -40,16 +59,23 @@ export function applyTheme(theme: ThemeConfig, glassMode: GlassMode): void {
   set('--warn', theme.warn)
   set('--err', theme.err)
   set('--font-family', theme.fontFamily)
-  set('--text-shadow', theme.textShadow ? '0 1px 4px rgba(0, 0, 0, 0.9)' : 'none')
+
+  // Text printed on the accent has to flip with it.
+  set('--on-accent', isLight(theme.accent) ? '#0b1219' : '#f6fafd')
+
+  const lightGlass = isLight(theme.cardBackground)
+  set('--card-highlight', lightGlass ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.09)')
+  // A white tint would be invisible on off-white glass.
+  set('--panel-raised', lightGlass ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.07)')
+
+  // Dark text over a bright wallpaper wants a light halo, not a dark shadow.
+  const shadow = isLight(theme.text) ? '0 1px 4px rgba(0, 0, 0, 0.9)' : '0 1px 3px rgba(255, 255, 255, 0.7)'
+  set('--text-shadow', theme.textShadow ? shadow : 'none')
 }
 
 const DESIGN_WIDTH = 682
 
-/**
- * The panel is mounted portrait, so width is the tight dimension. Everything is
- * sized in rem against a root font size derived from it, which keeps one layout
- * working on the panel and in a scaled dev window.
- */
+/** Portrait, so width is the tight dimension and everything else is rem. */
 export function applyScale(fontScale: number): void {
   const scale = (window.innerWidth / DESIGN_WIDTH) * fontScale
   document.documentElement.style.fontSize = `${16 * scale}px`

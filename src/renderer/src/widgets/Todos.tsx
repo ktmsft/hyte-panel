@@ -18,7 +18,7 @@ export function Todos({ tasks, provider }: Props) {
 
   const open = tasks.filter((task) => !task.done)
   const done = tasks.filter((task) => task.done)
-  // Open tasks first, completed ones kept visible but pushed under them.
+  // Open first, completed pushed under.
   const ordered = [...open, ...done]
 
   async function submit(): Promise<void> {
@@ -52,8 +52,7 @@ export function Todos({ tasks, provider }: Props) {
 
       {adding ? (
         <div class="task-input">
-          {/* Phase 4 swaps this for the on-screen keyboard. It works with a real
-              keyboard today, which is enough to exercise the flow. */}
+          {/* Phase 4 swaps this for the on-screen keyboard. */}
           <input
             ref={inputRef}
             type="text"

@@ -6,14 +6,14 @@ import { getConfig, setConfig } from './config'
 import { findPanelDisplay, listDisplays } from './display'
 import { addTask, getState, removeTask, subscribe, toggleTask } from './state'
 
-/** Set HYTE_WINDOWED=1 to develop in a normal resizable window on the desktop. */
+/** HYTE_WINDOWED=1 gives a normal resizable window for layout work. */
 const WINDOWED = process.env.HYTE_WINDOWED === '1'
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL
 
 let panelWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let activeDisplayId: number | null = null
-/** Suppresses the quit-on-last-window-closed rule while we swap the panel window. */
+/** Suppresses quit-on-last-window-closed while swapping the panel window. */
 let rebuilding = false
 
 function loadRoute(window: BrowserWindow, route: 'panel' | 'settings'): void {
@@ -31,48 +31,27 @@ function createPanelWindow(): void {
   activeDisplayId = display.id
 
   const { x, y, width, height } = display.bounds
-  // Dev mode stays opaque: a transparent frameless dev window is unusable, and
-  // acrylic there would just be confusing.
   const mode = WINDOWED ? 'solid' : config.glassMode
 
   panelWindow = new BrowserWindow({
     x: WINDOWED ? undefined : x,
     y: WINDOWED ? undefined : y,
-    // Windowed mode keeps the panel's portrait proportions at 3/8 scale so the
-    // layout can be judged on a desktop monitor.
+    // Portrait proportions at 3/8 scale.
     width: WINDOWED ? 256 : width,
     height: WINDOWED ? 960 : height,
     frame: WINDOWED,
     resizable: WINDOWED,
     movable: WINDOWED,
     hasShadow: false,
-    /*
-     * Deliberately NOT `fullscreen: true`. Wallpaper Engine pauses the wallpaper
-     * under a focused fullscreen window, and a paused wallpaper is the whole
-     * thing we are trying to avoid. A borderless window at the display's exact
-     * bounds is visually identical and leaves the wallpaper running.
-     */
-    /*
-     * Frosted deliberately leaves `transparent` false. Electron omits the
-     * layered-window flags in that case, which is exactly what lets DWM paint
-     * its acrylic material behind the page; setting `transparent: true` blocks
-     * it entirely. A fully transparent backgroundColor then clears Chromium's
-     * own buffer so the acrylic shows through the page.
-     *
-     * Acrylic is the only way to blur what is behind the window. CSS
-     * backdrop-filter samples the page's own backdrop, which behind a
-     * transparent window is nothing at all.
-     */
+    // Never `fullscreen: true`: Wallpaper Engine pauses under a focused
+    // fullscreen window. Borderless at exact bounds looks the same.
+    // Frosted needs transparent false, or Electron's layered-window flags stop
+    // DWM painting the acrylic.
     transparent: mode === 'clear',
     backgroundColor: mode === 'solid' ? config.theme.background : '#00000000',
-    // Windows 11 22H2 and up. Silently ignored on older builds, which is why
-    // Clear stays available as a fallback.
     backgroundMaterial: mode === 'frosted' ? 'acrylic' : 'none',
-    // Only pin above other windows once we are confident we are on the case panel,
-    // otherwise a mis-detection would park an always-on-top window over the desktop.
+    // Only pin on top once we know we found the panel, not the desktop.
     alwaysOnTop: !WINDOWED && detected && config.alwaysOnTop,
-    // No taskbar button and no Alt+Tab entry. On the case panel this should read
-    // as part of the machine, not as an app someone left open.
     skipTaskbar: !WINDOWED,
     autoHideMenuBar: true,
     show: false,
@@ -130,8 +109,7 @@ function movePanelToDisplay(displayId: number): void {
   activeDisplayId = display.id
 
   if (WINDOWED) {
-    // Dev mode keeps its small proportional window, just moved onto the chosen
-    // display. Blowing it up to full bounds would misrepresent the real thing.
+    // Keep the small dev window, just move it onto the chosen display.
     const current = panelWindow.getBounds()
     panelWindow.setBounds({
       x: display.bounds.x + 40,
@@ -152,8 +130,7 @@ function openSettingsWindow(): void {
     return
   }
 
-  // Settings deliberately open on the primary monitor. Typing an app password on
-  // a 682px-wide on-screen keyboard is not something anyone should have to do.
+  // Primary monitor: the panel has no keyboard.
   const primary = screen.getPrimaryDisplay()
   settingsWindow = new BrowserWindow({
     width: 960,
@@ -190,8 +167,7 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
   app.setLoginItemSettings({ openAtLogin: next.autostart })
 
   if (previous.glassMode !== next.glassMode) {
-    // Transparency is fixed at construction time, so this one needs a new window.
-    // Everything else applies live.
+    // Transparency is fixed at construction. Everything else applies live.
     rebuildPanelWindow()
     return
   }
@@ -229,7 +205,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.appQuit, () => app.quit())
 }
 
-/** A second launch focuses the panel rather than opening a duplicate on the same screen. */
+/** A second launch focuses the panel instead of duplicating it. */
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -248,8 +224,7 @@ if (!app.requestSingleInstanceLock()) {
     subscribe((state) => broadcast(IPC.stateChanged, state))
     createPanelWindow()
 
-    // The case panel is often slower to enumerate than the desktop monitors at
-    // boot, and it disappears entirely if the DisplayPort cable is pulled.
+    // The panel enumerates late at boot and vanishes if unplugged.
     screen.on('display-added', () => {
       const { display, detected } = findPanelDisplay(getConfig())
       if (detected && display.id !== activeDisplayId) movePanelToDisplay(display.id)
