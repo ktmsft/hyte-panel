@@ -1,8 +1,8 @@
-import type { CalendarEvent, Health } from '@shared/types'
+import type { Health } from '@shared/types'
 import { getConfig } from './config'
 import { fetchEvents, FeedError } from './feeds/calendar'
 import { fetchMail } from './feeds/mail'
-import { calendarUrl, noteError } from './feeds/store'
+import { calendarUrl, noteCalendar, noteMailError } from './feeds/store'
 import { ImapError } from './imap'
 import { getState, goLive, setEvents, setSource } from './state'
 
@@ -47,37 +47,40 @@ async function pollCalendar(): Promise<void> {
   }
 
   const hadData = getState().events.length > 0
-  const results = await Promise.allSettled(
-    feeds.map((feed) => fetchEvents(feed.url, { id: feed.id, label: feed.label, color: feed.color }, calendarDays))
+
+  // Each feed is recorded on its own, so settings can say which one is broken
+  // rather than reporting one error for the lot.
+  const results = await Promise.all(
+    feeds.map(async (feed) => {
+      try {
+        const events = await fetchEvents(
+          feed.url,
+          { id: feed.id, label: feed.label, color: feed.color },
+          calendarDays
+        )
+        noteCalendar(feed.id, null, events.length)
+        return events
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        console.error(`[calendar] ${feed.label}:`, message)
+        noteCalendar(feed.id, message, 0)
+        return null
+      }
+    })
   )
 
-  const events: CalendarEvent[] = results.flatMap((result) =>
-    result.status === 'fulfilled' ? result.value : []
-  )
-  const failed = results.filter((result) => result.status === 'rejected')
+  const events = results.flatMap((result) => result ?? [])
+  const failed = results.filter((result) => result === null).length
 
-  // One broken feed should not blank an agenda the others can still fill.
-  if (failed.length === results.length) {
-    const { health, message } = failure(
-      (failed[0] as PromiseRejectedResult | undefined)?.reason,
-      hadData
-    )
-    console.error('[calendar]', message)
-    noteError(message)
-    setEvents(null, health)
+  if (failed === results.length) {
+    setEvents(null, failure(new FeedError('every calendar failed'), hadData).health)
     return
   }
 
-  if (failed.length > 0) {
-    const reason = (failed[0] as PromiseRejectedResult).reason
-    console.warn('[calendar] one feed failed:', reason instanceof Error ? reason.message : reason)
-  }
-
   goLive()
-  noteError(null)
   setEvents(
     events.sort((a, b) => a.start.localeCompare(b.start)),
-    failed.length > 0 ? 'stale' : 'ok'
+    failed > 0 ? 'stale' : 'ok'
   )
 }
 
@@ -102,6 +105,7 @@ async function pollMail(): Promise<void> {
   try {
     const { count, items } = await fetchMail(mail, mailDetail)
     goLive()
+    noteMailError(null)
     setSource('gmail', {
       health: 'ok',
       count,
@@ -112,7 +116,7 @@ async function pollMail(): Promise<void> {
   } catch (err) {
     const { health, message } = failure(err, hadData)
     console.error('[mail]', message)
-    noteError(message)
+    noteMailError(message)
     setSource('gmail', { health, message })
   }
 }

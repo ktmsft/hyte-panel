@@ -21,6 +21,11 @@ export interface FeedInfo {
   color: string
 }
 
+/** Enough of the URL to recognise it, with the secret token taken out. */
+function describeUrl(url: URL): string {
+  return url.host + url.pathname.replace(/(private-|basic)[^/]*/gi, '$1***')
+}
+
 export async function fetchFeed(url: string): Promise<string> {
   // Calendar apps hand out webcal://, which is just https by another name.
   const normalised = url.trim().replace(/^webcal:\/\//i, 'https://')
@@ -46,7 +51,13 @@ export async function fetchFeed(url: string): Promise<string> {
 
   const text = await response.text()
   if (!/BEGIN:VCALENDAR/i.test(text)) {
-    throw new FeedError('That URL did not return a calendar. Check it is the iCal address, not the web link.')
+    // Almost always the browser link rather than the iCal one, and the
+    // content type says so plainly.
+    const kind = response.headers.get('content-type')?.split(';')[0] ?? 'no content type'
+    throw new FeedError(
+      `Got ${kind} from ${describeUrl(parsed)}, not a calendar. Copy the "Secret address in iCal format", ` +
+        'which ends in /basic.ics, rather than the calendar link from the address bar.'
+    )
   }
   return text
 }

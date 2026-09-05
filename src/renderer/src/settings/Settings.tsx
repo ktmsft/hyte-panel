@@ -68,7 +68,15 @@ export function Settings() {
     void window.hyte.getConfig().then(setConfig)
     void window.hyte.listDisplays().then(setDisplays)
     void window.hyte.feedsStatus().then(setFeeds)
-    return window.hyte.onFeedsStatusChanged(setFeeds)
+    // Adding or removing a calendar changes the config in main, not here.
+    // Without this the local copy goes stale, the list renders empty, and the
+    // next patch writes that empty list back over the real one.
+    const stopConfig = window.hyte.onConfigChanged(setConfig)
+    const stopFeeds = window.hyte.onFeedsStatusChanged(setFeeds)
+    return () => {
+      stopConfig()
+      stopFeeds()
+    }
   }, [])
 
   async function patch(update: Partial<AppConfig>): Promise<void> {
@@ -210,13 +218,23 @@ export function Settings() {
                 value={feed.color}
                 onChange={(event) => patchCalendar(feed.id, { color: event.currentTarget.value })}
               />
-              <span class="badge">
-                {feeds?.calendarsWithUrl.includes(feed.id) ? 'Address saved' : 'No address'}
-              </span>
               <button class="action" onClick={() => void removeCalendar(feed.id)}>
                 Remove
               </button>
             </div>
+            {(() => {
+              const health = feeds?.calendars.find((c) => c.id === feed.id)
+              if (!health?.hasUrl) return <p class="notice warn">No address saved yet.</p>
+              if (health.error) return <p class="notice error">{health.error}</p>
+              if (!health.checkedAt) return <p class="notice">Not refreshed yet.</p>
+              return (
+                <p class="notice ok">
+                  {health.events === 0
+                    ? `Loaded, but nothing in the next ${feedsConfig.calendarDays} days.`
+                    : `Loaded ${health.events} event${health.events === 1 ? '' : 's'}.`}
+                </p>
+              )
+            })()}
             <div class="row">
               <input
                 type="password"
@@ -375,6 +393,10 @@ export function Settings() {
           Refreshed every 2 minutes.
         </p>
 
+        {feeds?.mailError && <p class="notice error">{feeds.mailError}</p>}
+        {feeds?.mailPasswordSet && !feeds.mailError && (
+          <p class="notice ok">Signed in. The unread count is live.</p>
+        )}
         {feeds?.lastError && <p class="notice error">{feeds.lastError}</p>}
       </section>
 

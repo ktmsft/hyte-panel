@@ -136,13 +136,27 @@ export interface FeedsConfig {
   mailDetail: MailDetail
 }
 
+/** How one calendar feed fared on its last refresh. */
+export interface CalendarHealth {
+  id: string
+  /** A secret URL is on file. The URL itself never crosses IPC. */
+  hasUrl: boolean
+  /** Null once it has loaded cleanly. */
+  error: string | null
+  /** Events found in the window, so a working feed can be told from an empty one. */
+  events: number
+  /** Null until it has been tried. */
+  checkedAt: string | null
+}
+
 /** What the settings window may know. Credentials themselves never cross IPC. */
 export interface FeedsStatus {
-  /** Ids of the calendars that have a secret URL on file. */
-  calendarsWithUrl: string[]
+  calendars: CalendarHealth[]
   mailPasswordSet: boolean
+  mailError: string | null
   /** False where safeStorage cannot encrypt, which blocks saving anything. */
   encryptionAvailable: boolean
+  /** A failed credential write, as opposed to a failed refresh. */
   lastError: string | null
 }
 

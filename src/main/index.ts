@@ -4,7 +4,7 @@ import type { AppConfig } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import { getConfig, setConfig } from './config'
 import { findPanelDisplay, listDisplays } from './display'
-import { feedsStatus, noteError, setCalendarUrl, setMailPassword } from './feeds/store'
+import { feedsStatus, noteError, onFeedsChanged, setCalendarUrl, setMailPassword } from './feeds/store'
 import { refreshNow, startPolling } from './poll'
 import { applyPanelTaskbar, restorePanelTaskbar } from './taskbar'
 import { addTask, getState, removeTask, subscribe, syncSourcesEnabled, toggleTask } from './state'
@@ -312,6 +312,8 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpc()
     subscribe((state) => broadcast(IPC.stateChanged, state))
+    // A refresh result is news for the settings window too.
+    onFeedsChanged(() => broadcast(IPC.feedsStatusChanged, feedsStatus()))
     createPanelWindow()
     startPolling()
     syncPanelTaskbar()
