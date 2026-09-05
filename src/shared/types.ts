@@ -165,6 +165,9 @@ export interface FeedsStatus {
   lastError: string | null
 }
 
+/** The cards on the panel, in the order they are stacked. */
+export type PanelId = 'clock' | 'agenda' | 'todos' | 'alerts'
+
 export interface MicrosoftConfig {
   /** Application (client) ID from the Entra app registration. Not a secret. */
   clientId: string
@@ -199,6 +202,8 @@ export interface AppConfig {
   glassMode: GlassMode
   alwaysOnTop: boolean
   alertsLayout: AlertsLayout
+  /** Which cards are on screen. Hiding them all is allowed. */
+  panels: Record<PanelId, boolean>
   theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
   feeds: FeedsConfig

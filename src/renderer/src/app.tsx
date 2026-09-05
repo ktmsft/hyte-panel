@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'preact/hooks'
-import type { AppConfig, PanelState } from '@shared/types'
+import type { JSX } from 'preact'
+import type { AppConfig, PanelId, PanelState } from '@shared/types'
 import { applyScale, applyTheme } from './lib/theme'
 import { Clock } from './widgets/Clock'
 import { Agenda } from './widgets/Agenda'
 import { Todos } from './widgets/Todos'
 import { Alerts } from './widgets/Alerts'
 import { Settings } from './settings/Settings'
+
+/** Top to bottom, as stacked on the portrait panel. */
+const PANEL_ORDER: PanelId[] = ['clock', 'agenda', 'todos', 'alerts']
+
+/**
+ * Whichever of these is visible first takes the leftover height. The rows are
+ * built from the visible set, so a hidden card leaves no gap behind it.
+ */
+const FILL_PRIORITY: PanelId[] = ['todos', 'agenda', 'alerts', 'clock']
 
 /** Both windows load the same bundle. The hash decides which one this is. */
 const isSettingsWindow = window.location.hash === '#settings'
@@ -57,12 +67,38 @@ export function App() {
   if (isSettingsWindow) return <Settings />
   if (!state || !config) return null
 
+  const openSettings = (): void => void window.hyte.openSettings()
+
+  const cards: Record<PanelId, JSX.Element> = {
+    clock: <Clock key="clock" mock={state.mock} onOpenSettings={openSettings} />,
+    agenda: (
+      <Agenda
+        key="agenda"
+        events={state.events}
+        health={state.eventsHealth}
+        note={state.eventsNote}
+      />
+    ),
+    todos: <Todos key="todos" tasks={state.tasks} provider={state.taskProvider} />,
+    alerts: <Alerts key="alerts" sources={state.sources} layout={config.alertsLayout} />
+  }
+
+  const visible = PANEL_ORDER.filter((id) => config.panels[id])
+  const filler = FILL_PRIORITY.find((id) => config.panels[id])
+  const gridTemplateRows = visible.map((id) => (id === filler ? 'minmax(20rem, 1fr)' : 'auto')).join(' ')
+
   return (
-    <div class="panel-grid">
-      <Clock mock={state.mock} onOpenSettings={() => void window.hyte.openSettings()} />
-      <Agenda events={state.events} health={state.eventsHealth} note={state.eventsNote} />
-      <Todos tasks={state.tasks} provider={state.taskProvider} />
-      <Alerts sources={state.sources} layout={config.alertsLayout} />
-    </div>
+    <>
+      <div class="panel-grid" style={{ gridTemplateRows }}>
+        {visible.map((id) => cards[id])}
+      </div>
+      {/* The only way into settings is the clock's gear, so hiding the clock
+          would strand the panel with no way back. */}
+      {!config.panels.clock && (
+        <button class="settings-escape" onClick={openSettings} aria-label="Open settings">
+          Settings
+        </button>
+      )}
+    </>
   )
 }

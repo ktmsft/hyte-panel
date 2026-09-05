@@ -7,6 +7,7 @@ import type {
   GlassMode,
   MailDetail,
   MicrosoftStatus,
+  PanelId,
   SourceId,
   TaskProviderId,
   ThemeConfig
@@ -415,6 +416,37 @@ export function Settings() {
           <p class="notice ok">Signed in. The unread count is live.</p>
         )}
         {feeds?.lastError && <p class="notice error">{feeds.lastError}</p>}
+      </section>
+
+      <section>
+        <h2>Panels</h2>
+        <p class="lede">Cards stack in this order. Hiding one closes the gap it left.</p>
+        {(
+          [
+            ['clock', 'Clock'],
+            ['agenda', 'Agenda'],
+            ['todos', 'To-dos'],
+            ['alerts', 'Alerts']
+          ] as [PanelId, string][]
+        ).map(([id, label]) => (
+          <div class="row" key={id}>
+            <label class="toggle">
+              <input
+                type="checkbox"
+                checked={config.panels[id]}
+                onChange={(event) =>
+                  void patch({ panels: { ...config.panels, [id]: event.currentTarget.checked } })
+                }
+              />
+              {label}
+            </label>
+          </div>
+        ))}
+        <p class="hint">
+          Whichever of To-dos, Agenda or Alerts is showing takes the leftover height, so the stack always
+          fills the screen. With the clock hidden the gear goes with it, so a settings button appears in
+          the panel's top corner instead.
+        </p>
       </section>
 
       <section>

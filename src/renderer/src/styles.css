@@ -64,7 +64,7 @@ button {
 
 /* ---------- panel shell ---------- */
 
-/* To-dos absorb the leftover height. */
+/* Rows are written from the visible set in app.tsx; this is the first paint. */
 .panel-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -776,4 +776,26 @@ button {
 .settings input.port {
   width: 5rem;
   flex: none;
+}
+
+/* Shown only when the clock, and with it the gear, is hidden. */
+.settings-escape {
+  position: fixed;
+  top: var(--gap);
+  right: var(--gap);
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  /* Comfortably tappable on a panel with no cursor. */
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.settings-escape:active {
+  color: var(--text);
 }

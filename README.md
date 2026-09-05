@@ -15,16 +15,29 @@ badge clears the moment real data lands, and the seeded examples never come back
 | 1 | Shell, display detection, layout, theming | Done |
 | 2 | Calendar feeds, Gmail unread | Done |
 | 3 | Bluesky, Proton | Next |
-| 4 | Task backends, on-screen keyboard | Planned |
+| 4 | Task backends, on-screen keyboard | Tasks done, keyboard planned |
 | 5 | Windows notification listener, Discord | Planned |
 | 6 | Packaging, overnight dimming | Planned |
 
 There is no Google sign-in, no Cloud project and no OAuth client. That is
 deliberate, and the reason is [below](#why-not-the-google-api).
 
+## Panels
+
+Settings, Panels. Clock, Agenda, To-dos and Alerts can each be switched off. Rows
+are built from the visible set rather than being fixed, so a hidden card leaves no
+gap, and whichever of To-dos, Agenda or Alerts is still showing takes the leftover
+height so the stack fills the screen.
+
+The gear lives in the clock, so hiding the clock would stand the panel up with no
+way back into settings. A settings button appears in the top corner instead.
+
 ## Backlog
 
-- **Toggle panels on and off.** Show or hide Clock, Agenda, To-dos and Alerts individually from settings. The grid rows are currently fixed at `auto auto 1fr auto`, so it needs to be built from the visible set, with one panel always taking the leftover height.
+- **On-screen keyboard.** Adding a to-do on the panel needs one; there is no
+  keyboard on a case display.
+- **Google Tasks.** Offered in settings but not built. It would need the OAuth
+  path the rest of the app was moved off, and the weekly expiry with it.
 
 ## Running
 
@@ -121,6 +134,27 @@ Phase 4's Google Tasks option would need OAuth back, and would have to be writte
 again. The Microsoft To Do path uses its own loopback flow in `src/main/oauth.ts`,
 which is close enough to start from.
 
+## Tasks
+
+Settings, Tasks. Microsoft To Do through Graph, or a local list held on this PC.
+
+The app registration is four fields at `portal.azure.com`: Entra ID, App
+registrations, New registration, **Personal Microsoft accounts only**, redirect
+URI **Mobile and desktop applications** pointing at `http://localhost`. Copy the
+**Application (client) ID** into settings. There is no secret and no permission to
+configure: this is a public client using PKCE, and `Tasks.ReadWrite` is approved
+by you at sign-in.
+
+Microsoft rather than Google for the reason above. A public client needs no
+consent screen to publish and nothing to submit for review, and its refresh tokens
+last 90 days and are replaced on every use, so a panel that polls all day never
+signs in twice.
+
+Completed tasks are hidden, matching To Do's own view. Edits are applied to the
+panel first and sent afterwards: a checkbox that waits on a round trip feels
+broken under a finger, and the refresh that follows corrects anything that did not
+land. Refreshed every 2 minutes.
+
 ## Sources
 
 | Source | Reads via | Needs |
@@ -165,6 +199,8 @@ src/main/      Node. Credentials, polling, helper process.
 src/main/feeds/   iCalendar and IMAP adapters.
 src/main/imap.ts  Minimal IMAP client, reused by Proton in phase 3.
 src/main/taskbar.ts  Hides the panel display's taskbar. See above.
+src/main/oauth.ts    Loopback PKCE flow for a public client.
+src/main/tasks/    Microsoft To Do, and the local fallback.
 src/preload/   contextBridge.
 src/renderer/  Preact UI. Never sees a token.
 src/shared/    Types and IPC names.

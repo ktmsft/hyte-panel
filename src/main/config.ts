@@ -17,6 +17,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   glassMode: 'clear',
   alwaysOnTop: true,
   alertsLayout: 'list',
+  panels: { clock: true, agenda: true, todos: true, alerts: true },
   theme: DEFAULT_THEME,
   sources: {
     gmail: { enabled: true },
