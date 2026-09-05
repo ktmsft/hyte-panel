@@ -6,6 +6,7 @@ import type {
   FeedsStatus,
   GlassMode,
   MailDetail,
+  MicrosoftStatus,
   SourceId,
   TaskProviderId,
   ThemeConfig
@@ -63,6 +64,10 @@ export function Settings() {
   /** Replacement URLs, per calendar id. Empty means keep the stored one. */
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({})
   const [passwordDraft, setPasswordDraft] = useState('')
+  const [microsoft, setMicrosoft] = useState<MicrosoftStatus | null>(null)
+  /** null means untouched, so the saved client ID shows through. */
+  const [clientIdDraft, setClientIdDraft] = useState<string | null>(null)
+  const [connecting, setConnecting] = useState(false)
 
   useEffect(() => {
     void window.hyte.getConfig().then(setConfig)
@@ -71,11 +76,14 @@ export function Settings() {
     // Adding or removing a calendar changes the config in main, not here.
     // Without this the local copy goes stale, the list renders empty, and the
     // next patch writes that empty list back over the real one.
+    void window.hyte.microsoftStatus().then(setMicrosoft)
     const stopConfig = window.hyte.onConfigChanged(setConfig)
     const stopFeeds = window.hyte.onFeedsStatusChanged(setFeeds)
+    const stopMicrosoft = window.hyte.onMicrosoftStatusChanged(setMicrosoft)
     return () => {
       stopConfig()
       stopFeeds()
+      stopMicrosoft()
     }
   }, [])
 
@@ -124,6 +132,15 @@ export function Settings() {
 
   async function removeCalendar(id: string): Promise<void> {
     setFeeds(await window.hyte.calendarRemove(id))
+  }
+
+  async function connectMicrosoft(): Promise<void> {
+    setConnecting(true)
+    try {
+      setMicrosoft(await window.hyte.microsoftConnect())
+    } finally {
+      setConnecting(false)
+    }
   }
 
   async function saveMailPassword(): Promise<void> {
@@ -585,14 +602,138 @@ export function Settings() {
             onChange={(event) => void patch({ taskProvider: event.currentTarget.value as TaskProviderId })}
           >
             <option value="local">On this PC</option>
-            <option value="google">Google Tasks</option>
             <option value="microsoft">Microsoft To Do</option>
+            <option value="google">Google Tasks (not built)</option>
           </select>
+          <span class="spacer" />
+          {config.taskProvider === 'microsoft' && microsoft?.connected && (
+            <span class="badge on">Connected</span>
+          )}
         </div>
-        <p class="hint">
-          Google Tasks rides the Calendar sign-in. Microsoft To Do needs its own app registration. Both
-          land in phase 4.
-        </p>
+
+        {config.taskProvider === 'google' && (
+          <p class="notice warn">
+            Google Tasks is not wired up. It would need the OAuth path that Calendar and mail were moved
+            off, and the same weekly expiry with it.
+          </p>
+        )}
+
+        {config.taskProvider === 'microsoft' && (
+          <>
+            {microsoft && !microsoft.encryptionAvailable && (
+              <p class="notice error">
+                Windows credential encryption is unavailable, so a token cannot be stored safely.
+              </p>
+            )}
+
+            <details class="steps" open={!microsoft?.hasClientId}>
+              <summary>Registering the app, once</summary>
+              <ol>
+                <li>
+                  At <code>portal.azure.com</code>, open <strong>Microsoft Entra ID</strong>,{' '}
+                  <strong>App registrations</strong>, <strong>New registration</strong>.
+                </li>
+                <li>
+                  Supported account types: <strong>Personal Microsoft accounts only</strong>.
+                </li>
+                <li>
+                  Redirect URI: platform <strong>Mobile and desktop applications</strong>, value{' '}
+                  <code>http://localhost</code>. Any port on it is accepted, which is what this uses.
+                </li>
+                <li>
+                  Register, then copy the <strong>Application (client) ID</strong> from the overview page.
+                </li>
+              </ol>
+              <p class="hint">
+                No client secret and no permissions to configure: this signs in as a public client with
+                PKCE, and asks for Tasks.ReadWrite at sign-in for you to approve. Nothing needs review, and
+                the sign-in does not expire while the panel keeps running.
+              </p>
+            </details>
+
+            <div class="field">
+              <span>Application (client) ID</span>
+              <input
+                type="text"
+                value={clientIdDraft ?? config.microsoft.clientId}
+                placeholder="00000000-0000-0000-0000-000000000000"
+                onInput={(event) => setClientIdDraft(event.currentTarget.value)}
+              />
+            </div>
+            <div class="row">
+              <button
+                class="action"
+                disabled={!(clientIdDraft ?? config.microsoft.clientId).trim()}
+                onClick={() => {
+                  void patch({
+                    microsoft: {
+                      ...config.microsoft,
+                      clientId: (clientIdDraft ?? config.microsoft.clientId).trim()
+                    }
+                  })
+                  setClientIdDraft(null)
+                }}
+              >
+                Save client ID
+              </button>
+              <span class="spacer" />
+              <span class="value">{microsoft?.hasClientId ? 'On file' : 'Not set'}</span>
+            </div>
+
+            {microsoft?.connected ? (
+              <div class="account">
+                <span class="badge on">Signed in</span>
+                <span class="who">{microsoft.account ?? 'Microsoft account'}</span>
+                <span class="spacer" />
+                <button class="action" onClick={() => void window.hyte.microsoftDisconnect().then(setMicrosoft)}>
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <div class="account">
+                <button
+                  class="action primary"
+                  disabled={!microsoft?.hasClientId || !microsoft.encryptionAvailable || connecting}
+                  onClick={() => void connectMicrosoft()}
+                >
+                  {connecting ? 'Waiting for your browser...' : 'Connect Microsoft account'}
+                </button>
+              </div>
+            )}
+
+            {microsoft?.connected && (
+              <div class="row">
+                <span>List</span>
+                <select
+                  value={config.microsoft.listId ?? ''}
+                  onChange={(event) =>
+                    void patch({
+                      microsoft: { ...config.microsoft, listId: event.currentTarget.value || null }
+                    })
+                  }
+                >
+                  <option value="">Default list</option>
+                  {microsoft.lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+                <button class="action" onClick={() => void window.hyte.microsoftLists().then(setMicrosoft)}>
+                  Refresh
+                </button>
+              </div>
+            )}
+
+            {microsoft?.lastError && <p class="notice error">{microsoft.lastError}</p>}
+
+            <p class="hint">
+              Completed tasks are hidden, matching To Do's own view. Ticking one on the panel applies
+              straight away and is sent afterwards, so a touch never waits on the network. Refreshed every
+              2 minutes.
+            </p>
+          </>
+        )}
       </section>
 
       <section>

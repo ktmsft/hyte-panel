@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { HyteApi } from '@shared/api'
-import type { AppConfig, FeedsStatus, PanelState } from '@shared/types'
+import type { AppConfig, FeedsStatus, MicrosoftStatus, PanelState } from '@shared/types'
 
 const api: HyteApi = {
   getState: () => ipcRenderer.invoke(IPC.stateGet),
@@ -34,6 +34,17 @@ const api: HyteApi = {
   calendarRemove: (id: string) => ipcRenderer.invoke(IPC.calendarRemove, id),
   mailSetPassword: (password: string) => ipcRenderer.invoke(IPC.mailSetPassword, password),
   feedsRefresh: () => ipcRenderer.invoke(IPC.feedsRefresh),
+  microsoftStatus: () => ipcRenderer.invoke(IPC.microsoftStatus),
+  onMicrosoftStatusChanged: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: MicrosoftStatus): void => callback(status)
+    ipcRenderer.on(IPC.microsoftStatusChanged, handler)
+    return () => {
+      ipcRenderer.off(IPC.microsoftStatusChanged, handler)
+    }
+  },
+  microsoftConnect: () => ipcRenderer.invoke(IPC.microsoftConnect),
+  microsoftDisconnect: () => ipcRenderer.invoke(IPC.microsoftDisconnect),
+  microsoftLists: () => ipcRenderer.invoke(IPC.microsoftLists),
   listDisplays: () => ipcRenderer.invoke(IPC.displaysList),
   setDisplay: (displayId: number) => ipcRenderer.invoke(IPC.panelSetDisplay, displayId),
   openSettings: () => ipcRenderer.invoke(IPC.settingsOpen),

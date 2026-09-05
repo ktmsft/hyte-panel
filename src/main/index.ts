@@ -7,7 +7,9 @@ import { findPanelDisplay, listDisplays } from './display'
 import { feedsStatus, noteError, onFeedsChanged, setCalendarUrl, setMailPassword } from './feeds/store'
 import { refreshNow, startPolling } from './poll'
 import { applyPanelTaskbar, restorePanelTaskbar } from './taskbar'
-import { addTask, getState, removeTask, subscribe, syncSourcesEnabled, toggleTask } from './state'
+import { getState, subscribe, syncSourcesEnabled, syncTaskProvider } from './state'
+import { addTask, refreshTasks, removeTask, toggleTask } from './tasks'
+import * as microsoft from './tasks/microsoft'
 
 /** HYTE_WINDOWED=1 gives a normal resizable window for layout work. */
 const WINDOWED = process.env.HYTE_WINDOWED === '1'
@@ -235,6 +237,14 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
     if (refreshKey(previous) !== refreshKey(next)) refreshNow()
   }
   if (previous.hideTaskbar !== next.hideTaskbar) syncPanelTaskbar()
+  if (previous.taskProvider !== next.taskProvider) {
+    syncTaskProvider()
+    void refreshTasks()
+  }
+  if (previous.microsoft.listId !== next.microsoft.listId) void refreshTasks()
+  if (previous.microsoft.clientId !== next.microsoft.clientId) {
+    broadcast(IPC.microsoftStatusChanged, microsoft.status())
+  }
 
   if (previous.glassMode !== next.glassMode) {
     // Transparency is fixed at construction. Everything else applies live.
@@ -325,6 +335,38 @@ function registerIpc(): void {
     })
   )
   ipcMain.handle(IPC.feedsRefresh, () => refreshNow())
+  ipcMain.handle(IPC.microsoftStatus, () => microsoft.status())
+  // Connect and disconnect report failure through `status.lastError` rather
+  // than rejecting, so settings shows a sentence instead of an IPC trace.
+  ipcMain.handle(IPC.microsoftConnect, async () => {
+    try {
+      await microsoft.connect()
+      await microsoft.fetchLists()
+    } catch (err) {
+      console.error('[microsoft] sign-in failed:', err)
+    }
+    await refreshTasks()
+    const status = microsoft.status()
+    broadcast(IPC.microsoftStatusChanged, status)
+    return status
+  })
+  ipcMain.handle(IPC.microsoftDisconnect, async () => {
+    microsoft.disconnect()
+    await refreshTasks()
+    const status = microsoft.status()
+    broadcast(IPC.microsoftStatusChanged, status)
+    return status
+  })
+  ipcMain.handle(IPC.microsoftLists, async () => {
+    try {
+      await microsoft.fetchLists()
+    } catch (err) {
+      console.error('[microsoft] could not read lists:', err)
+    }
+    const status = microsoft.status()
+    broadcast(IPC.microsoftStatusChanged, status)
+    return status
+  })
   ipcMain.handle(IPC.settingsOpen, () => {
     try {
       openSettingsWindow()
@@ -334,9 +376,19 @@ function registerIpc(): void {
     }
   })
   ipcMain.handle(IPC.settingsClose, () => settingsWindow?.close())
-  ipcMain.handle(IPC.taskAdd, (_event, title: string) => addTask(title))
-  ipcMain.handle(IPC.taskToggle, (_event, id: string) => toggleTask(id))
-  ipcMain.handle(IPC.taskRemove, (_event, id: string) => removeTask(id))
+  // These now reach a backend, so they answer once the write is on its way.
+  ipcMain.handle(IPC.taskAdd, async (_event, title: string) => {
+    await addTask(title)
+    return getState()
+  })
+  ipcMain.handle(IPC.taskToggle, async (_event, id: string) => {
+    await toggleTask(id)
+    return getState()
+  })
+  ipcMain.handle(IPC.taskRemove, async (_event, id: string) => {
+    await removeTask(id)
+    return getState()
+  })
   ipcMain.handle(IPC.appQuit, () => app.quit())
 }
 
@@ -360,6 +412,11 @@ if (!app.requestSingleInstanceLock()) {
     // A refresh result is news for the settings window too.
     onFeedsChanged(() => broadcast(IPC.feedsStatusChanged, feedsStatus()))
     createPanelWindow()
+    syncTaskProvider()
+    // Lists are needed before tasks can be read, and warm the settings picker.
+    if (microsoft.isConnected()) {
+      void microsoft.fetchLists().then(() => broadcast(IPC.microsoftStatusChanged, microsoft.status()))
+    }
     startPolling()
     syncPanelTaskbar()
 

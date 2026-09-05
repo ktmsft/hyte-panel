@@ -1,4 +1,4 @@
-import type { AppConfig, DisplayInfo, FeedsStatus, PanelState } from './types'
+import type { AppConfig, DisplayInfo, FeedsStatus, MicrosoftStatus, PanelState } from './types'
 
 /** The complete surface the renderer is allowed to reach. Nothing else crosses the bridge. */
 export interface HyteApi {
@@ -19,6 +19,14 @@ export interface HyteApi {
   /** Stored in the OS-encrypted vault. An empty string keeps the saved one. */
   mailSetPassword(password: string): Promise<FeedsStatus>
   feedsRefresh(): Promise<void>
+  microsoftStatus(): Promise<MicrosoftStatus>
+  /** Fires after a connect, disconnect or list refresh. Returns an unsubscribe function. */
+  onMicrosoftStatusChanged(callback: (status: MicrosoftStatus) => void): () => void
+  /** Opens the sign-in page in the real browser. Failures arrive in `lastError`. */
+  microsoftConnect(): Promise<MicrosoftStatus>
+  microsoftDisconnect(): Promise<MicrosoftStatus>
+  /** Re-reads the account's To Do lists. */
+  microsoftLists(): Promise<MicrosoftStatus>
   listDisplays(): Promise<DisplayInfo[]>
   setDisplay(displayId: number): Promise<DisplayInfo[]>
   openSettings(): Promise<void>

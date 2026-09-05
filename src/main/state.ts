@@ -115,6 +115,16 @@ export function setEvents(
   return updateState({ events: events ?? getState().events, eventsHealth: health, eventsNote: note })
 }
 
+/** `null` tasks keep whatever is on screen, for a refresh that failed. */
+export function setTasks(tasks: Task[] | null, health: Health): PanelState {
+  return updateState({ tasks: tasks ?? getState().tasks, tasksHealth: health })
+}
+
+/** The card labels itself with the provider, so it has to follow settings. */
+export function syncTaskProvider(): PanelState {
+  return updateState({ taskProvider: getConfig().taskProvider })
+}
+
 export function setSource(id: SourceId, patch: Partial<SourceState>): PanelState {
   return updateState({
     sources: getState().sources.map((source) => (source.id === id ? { ...source, ...patch } : source))

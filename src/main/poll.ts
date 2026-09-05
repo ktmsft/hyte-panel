@@ -5,6 +5,7 @@ import { fetchMail } from './feeds/mail'
 import { calendarUrl, noteCalendar, noteMailError } from './feeds/store'
 import { ImapError } from './imap'
 import { getState, goLive, setEvents, setSource } from './state'
+import { refreshTasks } from './tasks'
 
 /**
  * Refresh loops for the calendar feeds and the mail account. Calendar moves
@@ -13,9 +14,11 @@ import { getState, goLive, setEvents, setSource } from './state'
 
 const CALENDAR_MS = 5 * 60_000
 const MAIL_MS = 2 * 60_000
+const TASKS_MS = 2 * 60_000
 
 let calendarTimer: NodeJS.Timeout | null = null
 let mailTimer: NodeJS.Timeout | null = null
+let tasksTimer: NodeJS.Timeout | null = null
 
 /**
  * Data already on screen is dimmed rather than blanked on a first failure.
@@ -127,13 +130,16 @@ async function pollMail(): Promise<void> {
 export function refreshNow(): void {
   void pollCalendar()
   void pollMail()
+  void refreshTasks()
 }
 
 export function stopPolling(): void {
   if (calendarTimer) clearInterval(calendarTimer)
   if (mailTimer) clearInterval(mailTimer)
+  if (tasksTimer) clearInterval(tasksTimer)
   calendarTimer = null
   mailTimer = null
+  tasksTimer = null
 }
 
 /** Safe to call repeatedly: it restarts the loops and refreshes straight away. */
@@ -141,5 +147,6 @@ export function startPolling(): void {
   stopPolling()
   calendarTimer = setInterval(() => void pollCalendar(), CALENDAR_MS)
   mailTimer = setInterval(() => void pollMail(), MAIL_MS)
+  tasksTimer = setInterval(() => void refreshTasks(), TASKS_MS)
   refreshNow()
 }

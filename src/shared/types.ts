@@ -165,6 +165,29 @@ export interface FeedsStatus {
   lastError: string | null
 }
 
+export interface MicrosoftConfig {
+  /** Application (client) ID from the Entra app registration. Not a secret. */
+  clientId: string
+  /** Which To Do list to show. Null uses the account's default. */
+  listId: string | null
+}
+
+export interface TodoList {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
+/** What the settings window may know. The refresh token never crosses IPC. */
+export interface MicrosoftStatus {
+  hasClientId: boolean
+  connected: boolean
+  account: string | null
+  lists: TodoList[]
+  encryptionAvailable: boolean
+  lastError: string | null
+}
+
 export interface AppConfig {
   /** Bumped when a saved config needs migrating. */
   configVersion: number
@@ -180,6 +203,7 @@ export interface AppConfig {
   sources: Record<SourceId, { enabled: boolean }>
   feeds: FeedsConfig
   taskProvider: TaskProviderId
+  microsoft: MicrosoftConfig
   autostart: boolean
   /**
    * Hides the Windows taskbar on the panel display only. Windows itself has no

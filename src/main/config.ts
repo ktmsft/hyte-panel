@@ -33,6 +33,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     mailDetail: 'subjects'
   },
   taskProvider: 'local',
+  microsoft: { clientId: '', listId: null },
   // Something mounted in the case should come back on its own.
   autostart: true,
   // Off by default: a fresh install should not quietly rearrange the desktop.

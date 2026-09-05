@@ -99,8 +99,9 @@ count comes from, so subjects need no second round trip.
 
 ## Why not the Google API
 
-The API path is written and working, in the history at `src/main/google/`, and it
-was abandoned on purpose.
+The API path was written and working before being abandoned on purpose. It is not
+in the history: it was written and removed inside one working session, so nothing
+of it survived to a commit.
 
 Calendar and Gmail scopes are classed sensitive or restricted. An unverified app
 asking for them can only sign in while the consent screen is in **Testing**, and
@@ -116,8 +117,9 @@ policy, domain ownership and a review. For something that sits in a case and is
 meant to be looked at rather than maintained, a secret iCal URL and an IMAP app
 password do the same job and never expire.
 
-Phase 4's Google Tasks option would need OAuth back. `git log -- src/main/google`
-has it.
+Phase 4's Google Tasks option would need OAuth back, and would have to be written
+again. The Microsoft To Do path uses its own loopback flow in `src/main/oauth.ts`,
+which is close enough to start from.
 
 ## Sources
 
