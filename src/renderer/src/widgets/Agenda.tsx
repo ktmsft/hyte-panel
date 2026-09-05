@@ -9,6 +9,14 @@ interface Props {
 
 const MAX_EVENTS = 8
 
+/** Silence when the agenda is healthy, a word when it is not. */
+const HEALTH_CHIP: Partial<Record<Health, string>> = {
+  unconfigured: 'Not connected',
+  stale: 'Stale',
+  error: 'Refresh failed',
+  'setup-needed': 'Needs setup'
+}
+
 export function Agenda({ events, health }: Props) {
   const now = useNow(30_000)
   const nowMs = now.getTime()
@@ -25,7 +33,7 @@ export function Agenda({ events, health }: Props) {
     <div class="card">
       <div class="card-title">
         <span>Agenda</span>
-        {health === 'unconfigured' && <span class="chip">Not connected</span>}
+        {HEALTH_CHIP[health] && <span class="chip">{HEALTH_CHIP[health]}</span>}
       </div>
       <div class="card-body">
         {upcoming.length === 0 && <div class="empty">Nothing scheduled.</div>}

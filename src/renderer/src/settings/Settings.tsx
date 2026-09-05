@@ -3,7 +3,9 @@ import type {
   AlertsLayout,
   AppConfig,
   DisplayInfo,
+  FeedsStatus,
   GlassMode,
+  MailDetail,
   SourceId,
   TaskProviderId,
   ThemeConfig
@@ -20,7 +22,6 @@ const SOURCE_LABELS: Record<SourceId, string> = {
 
 /** Adapters that do not exist yet. */
 const NOT_YET_WIRED: Partial<Record<SourceId, string>> = {
-  gmail: 'Adapter lands in phase 2',
   proton: 'Adapter lands in phase 3',
   bluesky: 'Adapter lands in phase 3',
   discord: 'Needs the toast helper, phase 5'
@@ -56,10 +57,18 @@ const GLASS_NOTES: Record<GlassMode, string> = {
 export function Settings() {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [displays, setDisplays] = useState<DisplayInfo[]>([])
+  const [feeds, setFeeds] = useState<FeedsStatus | null>(null)
+  const [newLabel, setNewLabel] = useState('')
+  const [newUrl, setNewUrl] = useState('')
+  /** Replacement URLs, per calendar id. Empty means keep the stored one. */
+  const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({})
+  const [passwordDraft, setPasswordDraft] = useState('')
 
   useEffect(() => {
     void window.hyte.getConfig().then(setConfig)
     void window.hyte.listDisplays().then(setDisplays)
+    void window.hyte.feedsStatus().then(setFeeds)
+    return window.hyte.onFeedsStatusChanged(setFeeds)
   }, [])
 
   async function patch(update: Partial<AppConfig>): Promise<void> {
@@ -68,7 +77,7 @@ export function Settings() {
 
   if (!config) return null
 
-  const { theme } = config
+  const { theme, feeds: feedsConfig } = config
 
   /** Any hand edit means this is no longer a preset. */
   async function patchTheme(update: Partial<ThemeConfig>): Promise<void> {
@@ -90,6 +99,37 @@ export function Settings() {
     }
 
     await patch({ theme: next })
+  }
+
+  async function addCalendar(): Promise<void> {
+    if (!newUrl.trim()) return
+    setFeeds(await window.hyte.calendarAdd(newLabel, newUrl))
+    setNewLabel('')
+    setNewUrl('')
+  }
+
+  /** An empty box keeps the stored URL, so a label can be fixed on its own. */
+  async function saveCalendarUrl(id: string): Promise<void> {
+    setFeeds(await window.hyte.calendarSetUrl(id, urlDrafts[id] ?? ''))
+    setUrlDrafts({ ...urlDrafts, [id]: '' })
+  }
+
+  async function removeCalendar(id: string): Promise<void> {
+    setFeeds(await window.hyte.calendarRemove(id))
+  }
+
+  async function saveMailPassword(): Promise<void> {
+    setFeeds(await window.hyte.mailSetPassword(passwordDraft))
+    setPasswordDraft('')
+  }
+
+  function patchCalendar(id: string, update: Partial<(typeof feedsConfig)['calendars'][number]>): void {
+    void patch({
+      feeds: {
+        ...feedsConfig,
+        calendars: feedsConfig.calendars.map((feed) => (feed.id === id ? { ...feed, ...update } : feed))
+      }
+    })
   }
 
   return (
@@ -118,6 +158,224 @@ export function Settings() {
           Auto-detection looks for {config.displayMatch.width} x {config.displayMatch.height} in either
           orientation, then any non-primary display three times longer than it is wide.
         </p>
+      </section>
+
+      <section>
+        <h2>Calendars</h2>
+        <p class="lede">Each one is an iCalendar feed, read straight over HTTPS. No sign-in.</p>
+
+        {feeds && !feeds.encryptionAvailable && (
+          <p class="notice error">
+            Windows credential encryption is unavailable, so secret addresses cannot be stored.
+          </p>
+        )}
+
+        <details class="steps" open={feedsConfig.calendars.length === 0}>
+          <summary>Finding the secret address</summary>
+          <ol>
+            <li>Open Google Calendar in a browser.</li>
+            <li>
+              Hover the calendar in the left sidebar, then its three-dot menu,{' '}
+              <strong>Settings and sharing</strong>.
+            </li>
+            <li>
+              Scroll to <strong>Secret address in iCal format</strong> and copy it. It ends in{' '}
+              <code>/basic.ics</code>.
+            </li>
+          </ol>
+          <p class="hint">
+            That address is a password in URL form: anyone holding it can read the calendar. It is kept
+            encrypted and never shown again once saved. Reset it from the same page if it leaks.
+          </p>
+        </details>
+
+        {feedsConfig.calendars.map((feed) => (
+          <div class="feed" key={feed.id}>
+            <div class="row">
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  checked={feed.enabled}
+                  onChange={(event) => patchCalendar(feed.id, { enabled: event.currentTarget.checked })}
+                />
+              </label>
+              <input
+                type="text"
+                class="grow"
+                value={feed.label}
+                onInput={(event) => patchCalendar(feed.id, { label: event.currentTarget.value })}
+              />
+              <input
+                type="color"
+                value={feed.color}
+                onChange={(event) => patchCalendar(feed.id, { color: event.currentTarget.value })}
+              />
+              <span class="badge">
+                {feeds?.calendarsWithUrl.includes(feed.id) ? 'Address saved' : 'No address'}
+              </span>
+              <button class="action" onClick={() => void removeCalendar(feed.id)}>
+                Remove
+              </button>
+            </div>
+            <div class="row">
+              <input
+                type="password"
+                class="grow"
+                placeholder="Stored. Paste a new address only to replace it."
+                value={urlDrafts[feed.id] ?? ''}
+                onInput={(event) => setUrlDrafts({ ...urlDrafts, [feed.id]: event.currentTarget.value })}
+              />
+              <button
+                class="action"
+                disabled={!(urlDrafts[feed.id] ?? '').trim()}
+                onClick={() => void saveCalendarUrl(feed.id)}
+              >
+                Replace
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <div class="feed">
+          <div class="row">
+            <input
+              type="text"
+              value={newLabel}
+              placeholder="Name, for example Work"
+              onInput={(event) => setNewLabel(event.currentTarget.value)}
+            />
+            <input
+              type="password"
+              class="grow"
+              value={newUrl}
+              placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+              onInput={(event) => setNewUrl(event.currentTarget.value)}
+            />
+            <button class="action primary" disabled={!newUrl.trim()} onClick={() => void addCalendar()}>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div class="row">
+          <span>Agenda looks ahead</span>
+          <input
+            type="range"
+            min="1"
+            max="30"
+            step="1"
+            value={feedsConfig.calendarDays}
+            onInput={(event) =>
+              void patch({ feeds: { ...feedsConfig, calendarDays: Number(event.currentTarget.value) } })
+            }
+          />
+          <span class="value">{feedsConfig.calendarDays}d</span>
+        </div>
+        <p class="hint">
+          Refreshed every 5 minutes. Google regenerates these feeds on its own schedule, so an event
+          added seconds ago can take a while to appear.
+        </p>
+      </section>
+
+      <section>
+        <h2>Mail</h2>
+        <p class="lede">Unread count over IMAP. No OAuth, nothing to verify.</p>
+
+        <details class="steps" open={!feeds?.mailPasswordSet}>
+          <summary>Making a Gmail app password</summary>
+          <ol>
+            <li>
+              Switch on 2-Step Verification at <code>myaccount.google.com/security</code>. App passwords do
+              not exist without it.
+            </li>
+            <li>
+              Go to <code>myaccount.google.com/apppasswords</code>, name it Hyte Panel, and create it.
+            </li>
+            <li>Paste the 16 characters below. Spaces do not matter.</li>
+          </ol>
+        </details>
+
+        <div class="row">
+          <span>Server</span>
+          <input
+            type="text"
+            class="grow"
+            value={feedsConfig.mail.host}
+            onInput={(event) =>
+              void patch({
+                feeds: { ...feedsConfig, mail: { ...feedsConfig.mail, host: event.currentTarget.value } }
+              })
+            }
+          />
+          <input
+            type="text"
+            class="port"
+            value={String(feedsConfig.mail.port)}
+            onInput={(event) =>
+              void patch({
+                feeds: {
+                  ...feedsConfig,
+                  mail: { ...feedsConfig.mail, port: Number(event.currentTarget.value) || 993 }
+                }
+              })
+            }
+          />
+        </div>
+        <div class="field">
+          <span>Address</span>
+          <input
+            type="text"
+            value={feedsConfig.mail.user}
+            placeholder="you@gmail.com"
+            onInput={(event) =>
+              void patch({
+                feeds: { ...feedsConfig, mail: { ...feedsConfig.mail, user: event.currentTarget.value } }
+              })
+            }
+          />
+        </div>
+        <div class="field">
+          <span>App password</span>
+          <input
+            type="password"
+            value={passwordDraft}
+            placeholder={feeds?.mailPasswordSet ? 'Stored. Type only to replace it.' : 'sixteen characters'}
+            onInput={(event) => setPasswordDraft(event.currentTarget.value)}
+          />
+        </div>
+        <div class="row">
+          <button class="action" disabled={!passwordDraft.trim()} onClick={() => void saveMailPassword()}>
+            Save password
+          </button>
+          <span class="spacer" />
+          <span class="value">{feeds?.mailPasswordSet ? 'On file' : 'Not set'}</span>
+        </div>
+
+        <div class="row">
+          <span>Alerts show</span>
+          <div class="segmented">
+            {(
+              [
+                ['count', 'Unread count'],
+                ['subjects', 'Count and subjects']
+              ] as [MailDetail, string][]
+            ).map(([detail, label]) => (
+              <button
+                key={detail}
+                class={feedsConfig.mailDetail === detail ? 'active' : ''}
+                onClick={() => void patch({ feeds: { ...feedsConfig, mailDetail: detail } })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p class="hint">
+          Read-only: messages are fetched with EXAMINE and BODY.PEEK, so nothing is marked as read.
+          Refreshed every 2 minutes.
+        </p>
+
+        {feeds?.lastError && <p class="notice error">{feeds.lastError}</p>}
       </section>
 
       <section>
@@ -232,6 +490,23 @@ export function Settings() {
         </div>
 
         <div class="row">
+          <span>Space between cards</span>
+          <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={theme.gapScale}
+            onInput={(event) => void patchTheme({ gapScale: Number(event.currentTarget.value) })}
+          />
+          <span class="value">{Math.round(theme.gapScale * 100)}%</span>
+        </div>
+        <p class="hint">
+          Sets the gutters and the panel's own inset together, so the wallpaper shows through evenly. At
+          0% the cards meet and run to the edges of the screen.
+        </p>
+
+        <div class="row">
           <label class="toggle">
             <input
               type="checkbox"
@@ -310,6 +585,23 @@ export function Settings() {
             Start with Windows
           </label>
         </div>
+        <div class="row">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              checked={config.hideTaskbar}
+              onChange={(event) => void patch({ hideTaskbar: event.currentTarget.checked })}
+            />
+            Hide the Windows taskbar on the panel
+          </label>
+        </div>
+        <p class="hint">
+          Only on the panel: your other monitors keep theirs. Windows has no per-monitor switch for this,
+          so the taskbar window is hidden directly, which the shell undoes whenever it rebuilds its
+          taskbars. It is re-applied on display changes and every 5 minutes, and put back when Hyte Panel
+          quits.
+        </p>
+
         <div class="row">
           <label class="toggle">
             <input

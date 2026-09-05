@@ -1,4 +1,4 @@
-import type { PanelState, SourceId, SourceState, Task } from '@shared/types'
+import type { CalendarEvent, Health, PanelState, SourceId, SourceState, Task } from '@shared/types'
 import { getConfig } from './config'
 
 type Listener = (state: PanelState) => void
@@ -6,7 +6,8 @@ type Listener = (state: PanelState) => void
 const listeners = new Set<Listener>()
 
 /**
- * What the renderer draws. Placeholder data until the adapters land.
+ * What the renderer draws. Placeholder data until an adapter reports, then
+ * `goLive` clears it for good.
  * Built lazily: app.getPath('userData') is not safe at import time.
  */
 let state: PanelState | null = null
@@ -22,18 +23,22 @@ function iso(offsetMinutes: number): string {
   return new Date(Date.now() + offsetMinutes * 60_000).toISOString()
 }
 
-function buildMockState(): PanelState {
-  const config = getConfig()
-  const sources: SourceState[] = (Object.keys(SOURCE_LABELS) as SourceId[]).map((id) => ({
+function blankSource(id: SourceId): SourceState {
+  return {
     id,
     label: SOURCE_LABELS[id],
-    enabled: config.sources[id]?.enabled ?? true,
+    enabled: getConfig().sources[id]?.enabled ?? true,
     health: 'unconfigured',
     count: 0,
     items: [],
     checkedAt: null,
     message: 'Not connected yet'
-  }))
+  }
+}
+
+function buildMockState(): PanelState {
+  const config = getConfig()
+  const sources = (Object.keys(SOURCE_LABELS) as SourceId[]).map(blankSource)
 
   // A couple of real values so the layout is judged with ink on it.
   sources[0] = { ...sources[0], health: 'ok', count: 3, checkedAt: iso(-1), message: undefined }
@@ -78,6 +83,47 @@ export function updateState(patch: Partial<PanelState>): PanelState {
 export function subscribe(listener: Listener): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+/**
+ * Throws the placeholders away the first time a real adapter reports. Silent on
+ * purpose: the caller writes the real values in the same tick and notifies then,
+ * so the panel never flashes an empty frame.
+ */
+export function goLive(): void {
+  const current = getState()
+  if (!current.mock) return
+  state = {
+    ...current,
+    sources: current.sources.map((source) => blankSource(source.id)),
+    events: [],
+    eventsHealth: 'unconfigured',
+    // Anything the user typed is theirs; the seeded examples are not.
+    tasks: current.tasks.filter((task) => !task.id.startsWith('mock-')),
+    mock: false
+  }
+}
+
+/** `null` events keep whatever is on screen, for a refresh that failed. */
+export function setEvents(events: CalendarEvent[] | null, health: Health): PanelState {
+  return updateState({ events: events ?? getState().events, eventsHealth: health })
+}
+
+export function setSource(id: SourceId, patch: Partial<SourceState>): PanelState {
+  return updateState({
+    sources: getState().sources.map((source) => (source.id === id ? { ...source, ...patch } : source))
+  })
+}
+
+/** Mirrors the settings checkboxes onto the state the Alerts card filters on. */
+export function syncSourcesEnabled(): PanelState {
+  const config = getConfig()
+  return updateState({
+    sources: getState().sources.map((source) => ({
+      ...source,
+      enabled: config.sources[source.id]?.enabled ?? true
+    }))
+  })
 }
 
 /** Placeholder mutations so the widget works before phase 4. */

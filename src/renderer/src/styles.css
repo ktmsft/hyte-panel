@@ -651,3 +651,129 @@ button {
   color: var(--on-accent);
   font-weight: 600;
 }
+
+/* ---------- accounts ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.field > span {
+  font-size: 0.82rem;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings input[type='text'],
+.settings input[type='password'] {
+  background: var(--panel-raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  width: 100%;
+}
+
+.settings input::placeholder {
+  color: var(--faint);
+}
+
+.action {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.action.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* A settled state: signed in, credentials stored. */
+.notice {
+  border-left: 2px solid var(--line);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.notice.ok {
+  border-color: var(--ok);
+}
+
+.notice.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.notice.error {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+}
+
+.account .who {
+  font-weight: 600;
+}
+
+.steps {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.steps summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.steps ol {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+  line-height: 1.65;
+}
+
+.steps code {
+  background: var(--panel-raised);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}
+
+.feed {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.settings input.grow {
+  flex: 1;
+  min-width: 6rem;
+}
+
+.settings input.port {
+  width: 5rem;
+  flex: none;
+}

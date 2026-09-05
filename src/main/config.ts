@@ -6,7 +6,7 @@ import { DEFAULT_THEME } from '@shared/themes'
 
 // Settings live as plain JSON in userData. Credentials go through secrets.ts.
 
-export const CONFIG_VERSION = 1
+export const CONFIG_VERSION = 3
 
 export const DEFAULT_CONFIG: AppConfig = {
   configVersion: CONFIG_VERSION,
@@ -24,9 +24,19 @@ export const DEFAULT_CONFIG: AppConfig = {
     bluesky: { enabled: true },
     discord: { enabled: true }
   },
+  feeds: {
+    // Added by the user; each one pairs with a secret URL in the vault.
+    calendars: [],
+    calendarDays: 7,
+    mail: { host: 'imap.gmail.com', port: 993, user: '', enabled: true },
+    // Free over IMAP, unlike the Gmail API where it cost a restricted scope.
+    mailDetail: 'subjects'
+  },
   taskProvider: 'local',
   // Something mounted in the case should come back on its own.
   autostart: true,
+  // Off by default: a fresh install should not quietly rearrange the desktop.
+  hideTaskbar: false,
   dim: { enabled: false, startHour: 23, endHour: 7, level: 0.35 }
 }
 
@@ -54,21 +64,34 @@ function merge(base: AppConfig, patch: Partial<AppConfig>): AppConfig {
 /** Shape of the pre-versioning config, kept only so v0 files can be read. */
 interface LegacyConfig extends Partial<AppConfig> {
   transparent?: boolean
+  /** v2's Google OAuth block, removed when calendars moved to iCal feeds. */
+  google?: unknown
 }
 
-/** v0 had a `transparent` boolean and a solid default theme. */
+/** Steps a saved file up one version at a time. v2 added the `google` block. */
 function migrate(saved: LegacyConfig): Partial<AppConfig> {
-  if ((saved.configVersion ?? 0) >= CONFIG_VERSION) return saved
+  const from = saved.configVersion ?? 0
+  if (from >= CONFIG_VERSION) return saved
 
   const next: Partial<AppConfig> = { ...saved, configVersion: CONFIG_VERSION }
-  // v0's transparent:true is what Clear does now.
-  if (saved.glassMode === undefined && saved.transparent !== undefined) {
-    next.glassMode = saved.transparent ? 'clear' : 'solid'
+
+  // v0 had a `transparent` boolean and a solid default theme. These rules must
+  // stay gated on the version, or a v1 file would have its theme reset too.
+  if (from < 1) {
+    // v0's transparent:true is what Clear does now.
+    if (saved.glassMode === undefined && saved.transparent !== undefined) {
+      next.glassMode = saved.transparent ? 'clear' : 'solid'
+    }
+    if (saved.theme && saved.theme.preset === 'midnight' && saved.theme.cardOpacity === 1) {
+      next.theme = DEFAULT_THEME
+    }
+    delete (next as LegacyConfig).transparent
   }
-  if (saved.theme && saved.theme.preset === 'midnight' && saved.theme.cardOpacity === 1) {
-    next.theme = DEFAULT_THEME
-  }
-  delete (next as LegacyConfig).transparent
+
+  // v2 -> v3 replaced the Google OAuth block with `feeds`, which the merge
+  // against DEFAULT_CONFIG supplies. Drop the dead key so it stops being saved.
+  if (from < 3) delete (next as LegacyConfig).google
+
   return next
 }
 

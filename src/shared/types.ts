@@ -96,8 +96,54 @@ export interface ThemeConfig {
   fontFamily: string
   /** Multiplier on the type scale. 1 is the designed size. */
   fontScale: number
+  /**
+   * Multiplier on the space between cards, and on the panel's own inset.
+   * 1 is the designed spacing; 0 makes the cards meet and reach the edges.
+   */
+  gapScale: number
   /** Halo behind text, for busy wallpapers. */
   textShadow: boolean
+}
+
+/** `subjects` costs one extra IMAP command; nothing else differs. */
+export type MailDetail = 'count' | 'subjects'
+
+/**
+ * One iCalendar feed. The secret URL is a bearer credential, so it is kept in
+ * the encrypted vault and referenced by id, never stored here.
+ */
+export interface CalendarFeed {
+  id: string
+  label: string
+  /** Tint for this feed's events on the panel. */
+  color: string
+  enabled: boolean
+}
+
+/** IMAP over implicit TLS. Gmail is imap.gmail.com:993 with an app password. */
+export interface MailAccount {
+  host: string
+  port: number
+  user: string
+  enabled: boolean
+}
+
+export interface FeedsConfig {
+  calendars: CalendarFeed[]
+  /** How far ahead the agenda looks. */
+  calendarDays: number
+  mail: MailAccount
+  mailDetail: MailDetail
+}
+
+/** What the settings window may know. Credentials themselves never cross IPC. */
+export interface FeedsStatus {
+  /** Ids of the calendars that have a secret URL on file. */
+  calendarsWithUrl: string[]
+  mailPasswordSet: boolean
+  /** False where safeStorage cannot encrypt, which blocks saving anything. */
+  encryptionAvailable: boolean
+  lastError: string | null
 }
 
 export interface AppConfig {
@@ -113,8 +159,14 @@ export interface AppConfig {
   alertsLayout: AlertsLayout
   theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
+  feeds: FeedsConfig
   taskProvider: TaskProviderId
   autostart: boolean
+  /**
+   * Hides the Windows taskbar on the panel display only. Windows itself has no
+   * per-monitor switch, so this reaches for the taskbar window directly.
+   */
+  hideTaskbar: boolean
   dim: DimConfig
 }
 

@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { HyteApi } from '@shared/api'
-import type { AppConfig, PanelState } from '@shared/types'
+import type { AppConfig, FeedsStatus, PanelState } from '@shared/types'
 
 const api: HyteApi = {
   getState: () => ipcRenderer.invoke(IPC.stateGet),
@@ -21,6 +21,19 @@ const api: HyteApi = {
       ipcRenderer.off(IPC.configChanged, handler)
     }
   },
+  feedsStatus: () => ipcRenderer.invoke(IPC.feedsStatus),
+  onFeedsStatusChanged: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: FeedsStatus): void => callback(status)
+    ipcRenderer.on(IPC.feedsStatusChanged, handler)
+    return () => {
+      ipcRenderer.off(IPC.feedsStatusChanged, handler)
+    }
+  },
+  calendarAdd: (label: string, url: string) => ipcRenderer.invoke(IPC.calendarAdd, label, url),
+  calendarSetUrl: (id: string, url: string) => ipcRenderer.invoke(IPC.calendarSetUrl, id, url),
+  calendarRemove: (id: string) => ipcRenderer.invoke(IPC.calendarRemove, id),
+  mailSetPassword: (password: string) => ipcRenderer.invoke(IPC.mailSetPassword, password),
+  feedsRefresh: () => ipcRenderer.invoke(IPC.feedsRefresh),
   listDisplays: () => ipcRenderer.invoke(IPC.displaysList),
   setDisplay: (displayId: number) => ipcRenderer.invoke(IPC.panelSetDisplay, displayId),
   openSettings: () => ipcRenderer.invoke(IPC.settingsOpen),

@@ -48,6 +48,7 @@ const BASE: Omit<ThemeConfig, 'preset'> = {
   err: '#f85149',
   fontFamily: SEGOE,
   fontScale: 1,
+  gapScale: 1,
   textShadow: false
 }
 

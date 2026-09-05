@@ -59,6 +59,9 @@ export function applyTheme(theme: ThemeConfig, glassMode: GlassMode): void {
   set('--warn', theme.warn)
   set('--err', theme.err)
   set('--font-family', theme.fontFamily)
+  // Drives both the space between cards and the panel's inset, so wallpaper
+  // shows through in the same measure all round.
+  set('--gap', `${DESIGN_GAP_REM * theme.gapScale}rem`)
 
   // Text printed on the accent has to flip with it.
   set('--on-accent', isLight(theme.accent) ? '#0b1219' : '#f6fafd')
@@ -72,6 +75,9 @@ export function applyTheme(theme: ThemeConfig, glassMode: GlassMode): void {
   const shadow = isLight(theme.text) ? '0 1px 4px rgba(0, 0, 0, 0.9)' : '0 1px 3px rgba(255, 255, 255, 0.7)'
   set('--text-shadow', theme.textShadow ? shadow : 'none')
 }
+
+/** The gap the layout was drawn at, in rem. gapScale multiplies it. */
+const DESIGN_GAP_REM = 0.7
 
 const DESIGN_WIDTH = 682
 
