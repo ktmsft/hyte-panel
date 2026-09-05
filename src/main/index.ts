@@ -69,6 +69,12 @@ function createPanelWindow(): void {
 
   const thisWindow = panelWindow
   thisWindow.once('ready-to-show', () => thisWindow.show())
+  thisWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[panel] renderer gone:', details.reason)
+  })
+  thisWindow.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 2) console.error('[panel renderer]', message)
+  })
   thisWindow.on('closed', () => {
     // Guard against a rebuild's old window nulling out its replacement.
     if (panelWindow === thisWindow) {
@@ -146,10 +152,14 @@ function movePanelToDisplay(displayId: number): void {
 }
 
 function openSettingsWindow(): void {
-  if (settingsWindow) {
+  // A destroyed window left in this handle used to throw here, which the
+  // renderer's `void` swallowed: no settings window, and nothing logged.
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus()
     return
   }
+  settingsWindow = null
+  console.log('[settings] opening')
 
   // Primary monitor: the panel has no keyboard.
   const primary = screen.getPrimaryDisplay()
@@ -173,6 +183,19 @@ function openSettingsWindow(): void {
   settingsWindow.once('ready-to-show', () => settingsWindow?.show())
   settingsWindow.on('closed', () => {
     settingsWindow = null
+  })
+
+  // Without these a renderer that fails to load leaves a window that never
+  // fires ready-to-show, so nothing appears and nothing is said.
+  settingsWindow.webContents.on('did-fail-load', (_event, code, description, url) => {
+    console.error(`[settings] failed to load ${url}: ${description} (${code})`)
+    settingsWindow?.show()
+  })
+  settingsWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[settings] renderer gone:', details.reason)
+  })
+  settingsWindow.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 2) console.error('[settings renderer]', message)
   })
 
   loadRoute(settingsWindow, 'settings')
@@ -287,7 +310,14 @@ function registerIpc(): void {
     })
   )
   ipcMain.handle(IPC.feedsRefresh, () => refreshNow())
-  ipcMain.handle(IPC.settingsOpen, () => openSettingsWindow())
+  ipcMain.handle(IPC.settingsOpen, () => {
+    try {
+      openSettingsWindow()
+    } catch (err) {
+      // Never let this reject silently again.
+      console.error('[settings] could not open:', err)
+    }
+  })
   ipcMain.handle(IPC.settingsClose, () => settingsWindow?.close())
   ipcMain.handle(IPC.taskAdd, (_event, title: string) => addTask(title))
   ipcMain.handle(IPC.taskToggle, (_event, id: string) => toggleTask(id))
