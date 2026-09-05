@@ -50,6 +50,11 @@ export interface PanelState {
   sources: SourceState[]
   events: CalendarEvent[]
   eventsHealth: Health
+  /**
+   * Set when some feeds loaded and others did not. The events shown are fresh,
+   * just incomplete, which is not what `stale` means.
+   */
+  eventsNote: string | null
   tasks: Task[]
   taskProvider: TaskProviderId
   tasksHealth: Health

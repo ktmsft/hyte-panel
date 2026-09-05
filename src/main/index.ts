@@ -100,6 +100,20 @@ function createPanelWindow(): void {
 }
 
 /**
+ * Everything a refresh actually depends on. Labels are left out on purpose:
+ * they are typed a character at a time and change nothing that is fetched.
+ */
+function refreshKey(config: AppConfig): string {
+  const { feeds } = config
+  return JSON.stringify({
+    days: feeds.calendarDays,
+    detail: feeds.mailDetail,
+    mail: feeds.mail,
+    calendars: feeds.calendars.map((feed) => [feed.id, feed.enabled, feed.color])
+  })
+}
+
+/**
  * Keeps the panel display's taskbar matching the setting. Skipped in windowed
  * dev mode, where the small window is not really on the panel.
  */
@@ -217,7 +231,8 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
   }
   if (JSON.stringify(previous.feeds) !== JSON.stringify(next.feeds)) {
     broadcast(IPC.feedsStatusChanged, feedsStatus())
-    refreshNow()
+    // Renaming a calendar used to refetch every feed on each keystroke.
+    if (refreshKey(previous) !== refreshKey(next)) refreshNow()
   }
   if (previous.hideTaskbar !== next.hideTaskbar) syncPanelTaskbar()
 

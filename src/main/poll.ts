@@ -78,9 +78,12 @@ async function pollCalendar(): Promise<void> {
   }
 
   goLive()
+  // Fresh events from the feeds that worked. Saying `stale` here would claim
+  // the data is old, when really it is only incomplete.
   setEvents(
     events.sort((a, b) => a.start.localeCompare(b.start)),
-    failed > 0 ? 'stale' : 'ok'
+    'ok',
+    failed > 0 ? `${failed} of ${results.length} calendars failed` : null
   )
 }
 

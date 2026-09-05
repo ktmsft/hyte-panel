@@ -5,6 +5,7 @@ import { useNow } from '@/lib/useNow'
 interface Props {
   events: CalendarEvent[]
   health: Health
+  note: string | null
 }
 
 const MAX_EVENTS = 8
@@ -17,7 +18,7 @@ const HEALTH_CHIP: Partial<Record<Health, string>> = {
   'setup-needed': 'Needs setup'
 }
 
-export function Agenda({ events, health }: Props) {
+export function Agenda({ events, health, note }: Props) {
   const now = useNow(30_000)
   const nowMs = now.getTime()
 
@@ -33,7 +34,7 @@ export function Agenda({ events, health }: Props) {
     <div class="card">
       <div class="card-title">
         <span>Agenda</span>
-        {HEALTH_CHIP[health] && <span class="chip">{HEALTH_CHIP[health]}</span>}
+        {note ? <span class="chip">{note}</span> : HEALTH_CHIP[health] && <span class="chip">{HEALTH_CHIP[health]}</span>}
       </div>
       <div class="card-body">
         {upcoming.length === 0 && <div class="empty">Nothing scheduled.</div>}

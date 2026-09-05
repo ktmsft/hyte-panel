@@ -60,7 +60,7 @@ export function App() {
   return (
     <div class="panel-grid">
       <Clock mock={state.mock} onOpenSettings={() => void window.hyte.openSettings()} />
-      <Agenda events={state.events} health={state.eventsHealth} />
+      <Agenda events={state.events} health={state.eventsHealth} note={state.eventsNote} />
       <Todos tasks={state.tasks} provider={state.taskProvider} />
       <Alerts sources={state.sources} layout={config.alertsLayout} />
     </div>

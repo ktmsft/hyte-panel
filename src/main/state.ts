@@ -60,6 +60,7 @@ function buildMockState(): PanelState {
       { id: 'mock-e4', title: 'Ship the panel shell', start: iso(1500), end: iso(1560), allDay: false }
     ],
     eventsHealth: 'unconfigured',
+    eventsNote: null,
     tasks,
     taskProvider: config.taskProvider,
     tasksHealth: 'unconfigured',
@@ -98,6 +99,7 @@ export function goLive(): void {
     sources: current.sources.map((source) => blankSource(source.id)),
     events: [],
     eventsHealth: 'unconfigured',
+    eventsNote: null,
     // Anything the user typed is theirs; the seeded examples are not.
     tasks: current.tasks.filter((task) => !task.id.startsWith('mock-')),
     mock: false
@@ -105,8 +107,12 @@ export function goLive(): void {
 }
 
 /** `null` events keep whatever is on screen, for a refresh that failed. */
-export function setEvents(events: CalendarEvent[] | null, health: Health): PanelState {
-  return updateState({ events: events ?? getState().events, eventsHealth: health })
+export function setEvents(
+  events: CalendarEvent[] | null,
+  health: Health,
+  note: string | null = null
+): PanelState {
+  return updateState({ events: events ?? getState().events, eventsHealth: health, eventsNote: note })
 }
 
 export function setSource(id: SourceId, patch: Partial<SourceState>): PanelState {
