@@ -1,11 +1,20 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from 'electron'
 import { join } from 'node:path'
-import type { AppConfig } from '@shared/types'
+import type { AppConfig, MailAccountId } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import { getConfig, setConfig } from './config'
 import { findPanelDisplay, listDisplays } from './display'
-import { feedsStatus, noteError, onFeedsChanged, setCalendarUrl, setMailPassword } from './feeds/store'
+import {
+  feedsStatus,
+  migrateSecrets,
+  noteError,
+  onFeedsChanged,
+  setBlueskyPassword,
+  setCalendarUrl,
+  setMailPassword
+} from './feeds/store'
 import { refreshNow, startPolling } from './poll'
+import { forgetSession } from './sources/bluesky'
 import { applyPanelTaskbar, restorePanelTaskbar } from './taskbar'
 import { getState, subscribe, syncSourcesEnabled, syncTaskProvider } from './state'
 import { addTask, refreshTasks, removeTask, toggleTask } from './tasks'
@@ -273,6 +282,10 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
     void refreshTasks()
   }
   if (previous.microsoft.listId !== next.microsoft.listId) void refreshTasks()
+  if (JSON.stringify(previous.bluesky) !== JSON.stringify(next.bluesky)) {
+    forgetSession()
+    refreshNow()
+  }
   if (previous.microsoft.clientId !== next.microsoft.clientId) {
     broadcast(IPC.microsoftStatusChanged, microsoft.status())
   }
@@ -360,9 +373,14 @@ function registerIpc(): void {
       setConfig({ feeds: { ...feeds, calendars: feeds.calendars.filter((feed) => feed.id !== id) } })
     })
   })
-  ipcMain.handle(IPC.mailSetPassword, (_event, password: string) =>
+  ipcMain.handle(IPC.mailSetPassword, (_event, id: MailAccountId, password: string) =>
     withFeedWrite(() => {
-      if (password.trim()) setMailPassword(password)
+      if (password.trim()) setMailPassword(id, password)
+    })
+  )
+  ipcMain.handle(IPC.blueskySetPassword, (_event, password: string) =>
+    withFeedWrite(() => {
+      if (password.trim()) setBlueskyPassword(password)
     })
   )
   ipcMain.handle(IPC.feedsRefresh, () => refreshNow())
@@ -444,6 +462,8 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     app.setAppUserModelId('dev.bitofcode.hytepanel')
     app.setLoginItemSettings({ openAtLogin: getConfig().autostart })
+    // The single mailbox became named ones; move the old password across.
+    migrateSecrets()
 
     registerIpc()
     subscribe((state) => broadcast(IPC.stateChanged, state))

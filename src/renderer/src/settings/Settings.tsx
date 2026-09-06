@@ -5,6 +5,8 @@ import type {
   DisplayInfo,
   FeedsStatus,
   GlassMode,
+  MailAccount,
+  MailAccountId,
   MailDetail,
   MicrosoftStatus,
   PanelId,
@@ -25,8 +27,6 @@ const SOURCE_LABELS: Record<SourceId, string> = {
 
 /** Adapters that do not exist yet. */
 const NOT_YET_WIRED: Partial<Record<SourceId, string>> = {
-  proton: 'Adapter lands in phase 3',
-  bluesky: 'Adapter lands in phase 3',
   discord: 'Counts Windows notifications waiting, not Discord’s own badge'
 }
 
@@ -65,7 +65,7 @@ export function Settings() {
   const [newUrl, setNewUrl] = useState('')
   /** Replacement URLs, per calendar id. Empty means keep the stored one. */
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({})
-  const [passwordDraft, setPasswordDraft] = useState('')
+  const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({})
   const [microsoft, setMicrosoft] = useState<MicrosoftStatus | null>(null)
   /** null means untouched, so the saved client ID shows through. */
   const [clientIdDraft, setClientIdDraft] = useState<string | null>(null)
@@ -145,9 +145,28 @@ export function Settings() {
     }
   }
 
-  async function saveMailPassword(): Promise<void> {
-    setFeeds(await window.hyte.mailSetPassword(passwordDraft))
-    setPasswordDraft('')
+  function draft(key: string): string {
+    return passwordDrafts[key] ?? ''
+  }
+
+  function setDraft(key: string, value: string): void {
+    setPasswordDrafts({ ...passwordDrafts, [key]: value })
+  }
+
+  async function saveMailPassword(id: MailAccountId): Promise<void> {
+    setFeeds(await window.hyte.mailSetPassword(id, draft(id)))
+    setDraft(id, '')
+  }
+
+  async function saveBlueskyPassword(): Promise<void> {
+    setFeeds(await window.hyte.blueskySetPassword(draft('bluesky')))
+    setDraft('bluesky', '')
+  }
+
+  function patchMail(id: MailAccountId, update: Partial<MailAccount>): void {
+    void patch({
+      feeds: { ...feedsConfig, mail: { ...feedsConfig.mail, [id]: { ...feedsConfig.mail[id], ...update } } }
+    })
   }
 
   function patchCalendar(id: string, update: Partial<(typeof feedsConfig)['calendars'][number]>): void {
@@ -316,10 +335,10 @@ export function Settings() {
 
       <section>
         <h2>Mail</h2>
-        <p class="lede">Unread count over IMAP. No OAuth, nothing to verify.</p>
+        <p class="lede">Unread counts over IMAP. No OAuth, nothing to verify.</p>
 
-        <details class="steps" open={!feeds?.mailPasswordSet}>
-          <summary>Making a Gmail app password</summary>
+        <details class="steps" open={!feeds?.mail.gmail.passwordSet}>
+          <summary>Gmail: making an app password</summary>
           <ol>
             <li>
               Switch on 2-Step Verification at <code>myaccount.google.com/security</code>. App passwords do
@@ -332,61 +351,112 @@ export function Settings() {
           </ol>
         </details>
 
-        <div class="row">
-          <span>Server</span>
-          <input
-            type="text"
-            class="grow"
-            value={feedsConfig.mail.host}
-            onInput={(event) =>
-              void patch({
-                feeds: { ...feedsConfig, mail: { ...feedsConfig.mail, host: event.currentTarget.value } }
-              })
-            }
-          />
-          <input
-            type="text"
-            class="port"
-            value={String(feedsConfig.mail.port)}
-            onInput={(event) =>
-              void patch({
-                feeds: {
-                  ...feedsConfig,
-                  mail: { ...feedsConfig.mail, port: Number(event.currentTarget.value) || 993 }
-                }
-              })
-            }
-          />
-        </div>
-        <div class="field">
-          <span>Address</span>
-          <input
-            type="text"
-            value={feedsConfig.mail.user}
-            placeholder="you@gmail.com"
-            onInput={(event) =>
-              void patch({
-                feeds: { ...feedsConfig, mail: { ...feedsConfig.mail, user: event.currentTarget.value } }
-              })
-            }
-          />
-        </div>
-        <div class="field">
-          <span>App password</span>
-          <input
-            type="password"
-            value={passwordDraft}
-            placeholder={feeds?.mailPasswordSet ? 'Stored. Type only to replace it.' : 'sixteen characters'}
-            onInput={(event) => setPasswordDraft(event.currentTarget.value)}
-          />
-        </div>
-        <div class="row">
-          <button class="action" disabled={!passwordDraft.trim()} onClick={() => void saveMailPassword()}>
-            Save password
-          </button>
-          <span class="spacer" />
-          <span class="value">{feeds?.mailPasswordSet ? 'On file' : 'Not set'}</span>
-        </div>
+        <details class="steps" open={!feeds?.mail.proton.passwordSet}>
+          <summary>Proton: pointing at Bridge</summary>
+          <ol>
+            <li>
+              Proton Bridge has to be installed and running. It needs a paid Proton plan, and it is what
+              turns the account into something IMAP can read.
+            </li>
+            <li>
+              Open Bridge, select the account, and copy the IMAP settings it shows. The password there is
+              Bridge's own, generated for it, not your Proton password.
+            </li>
+            <li>
+              Bridge listens on <code>127.0.0.1:1143</code> and starts unencrypted, upgrading with STARTTLS.
+              Its certificate is one it signed itself, which is accepted here only because the connection
+              never leaves the machine.
+            </li>
+          </ol>
+        </details>
+
+        {(
+          [
+            ['gmail', 'Gmail'],
+            ['proton', 'Proton']
+          ] as [MailAccountId, string][]
+        ).map(([id, label]) => {
+          const account = feedsConfig.mail[id]
+          const health = feeds?.mail[id]
+          return (
+            <div class="feed" key={id}>
+              <div class="row">
+                <label class="toggle">
+                  <input
+                    type="checkbox"
+                    checked={account.enabled}
+                    onChange={(event) => patchMail(id, { enabled: event.currentTarget.checked })}
+                  />
+                  {label}
+                </label>
+                <span class="spacer" />
+                <span class="value">{health?.passwordSet ? 'On file' : 'Not set'}</span>
+              </div>
+
+              <div class="row">
+                <input
+                  type="text"
+                  class="grow"
+                  value={account.host}
+                  onInput={(event) => patchMail(id, { host: event.currentTarget.value })}
+                />
+                <input
+                  type="text"
+                  class="port"
+                  value={String(account.port)}
+                  onInput={(event) =>
+                    patchMail(id, { port: Number(event.currentTarget.value) || account.port })
+                  }
+                />
+                <div class="segmented">
+                  {(
+                    [
+                      ['tls', 'TLS'],
+                      ['starttls', 'STARTTLS']
+                    ] as [MailAccount['security'], string][]
+                  ).map(([security, text]) => (
+                    <button
+                      key={security}
+                      class={account.security === security ? 'active' : ''}
+                      onClick={() => patchMail(id, { security })}
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div class="row">
+                <input
+                  type="text"
+                  class="grow"
+                  value={account.user}
+                  placeholder={id === 'gmail' ? 'you@gmail.com' : 'you@proton.me'}
+                  onInput={(event) => patchMail(id, { user: event.currentTarget.value })}
+                />
+                <input
+                  type="password"
+                  class="grow"
+                  value={draft(id)}
+                  placeholder={health?.passwordSet ? 'Stored. Type only to replace it.' : 'password'}
+                  onInput={(event) => setDraft(id, event.currentTarget.value)}
+                />
+                <button
+                  class="action"
+                  disabled={!draft(id).trim()}
+                  onClick={() => void saveMailPassword(id)}
+                >
+                  Save
+                </button>
+              </div>
+
+              {health?.error && <p class="notice error">{health.error}</p>}
+              {health?.passwordSet && !health.error && account.enabled && (
+                <p class="notice ok">Signed in. The unread count is live.</p>
+              )}
+            </div>
+          )
+        })}
 
         <div class="row">
           <span>Alerts show</span>
@@ -412,11 +482,60 @@ export function Settings() {
           Refreshed every 2 minutes.
         </p>
 
-        {feeds?.mailError && <p class="notice error">{feeds.mailError}</p>}
-        {feeds?.mailPasswordSet && !feeds.mailError && (
-          <p class="notice ok">Signed in. The unread count is live.</p>
-        )}
         {feeds?.lastError && <p class="notice error">{feeds.lastError}</p>}
+      </section>
+
+      <section>
+        <h2>Bluesky</h2>
+        <p class="lede">Unread notifications. An app password is all it takes.</p>
+
+        <details class="steps" open={!feeds?.bluesky.passwordSet}>
+          <summary>Making an app password</summary>
+          <ol>
+            <li>
+              In Bluesky: Settings, Privacy and security, App passwords, Add app password.
+            </li>
+            <li>
+              Paste it below with your handle. An app password cannot change your real password or delete
+              the account, which is the point of using one.
+            </li>
+          </ol>
+        </details>
+
+        <div class="row">
+          <input
+            type="text"
+            class="grow"
+            value={config.bluesky.handle}
+            placeholder="you.bsky.social"
+            onInput={(event) =>
+              void patch({ bluesky: { ...config.bluesky, handle: event.currentTarget.value } })
+            }
+          />
+          <input
+            type="password"
+            class="grow"
+            value={draft('bluesky')}
+            placeholder={feeds?.bluesky.passwordSet ? 'Stored. Type only to replace it.' : 'app password'}
+            onInput={(event) => setDraft('bluesky', event.currentTarget.value)}
+          />
+          <button
+            class="action"
+            disabled={!draft('bluesky').trim()}
+            onClick={() => void saveBlueskyPassword()}
+          >
+            Save
+          </button>
+        </div>
+
+        {feeds?.bluesky.error && <p class="notice error">{feeds.bluesky.error}</p>}
+        {feeds?.bluesky.passwordSet && !feeds.bluesky.error && config.bluesky.handle.trim() && (
+          <p class="notice ok">Signed in. Notifications are live.</p>
+        )}
+        <p class="hint">
+          Refreshed every 2 minutes. The service is <code>{config.bluesky.service}</code>, which only needs
+          changing for a self-hosted account.
+        </p>
       </section>
 
       <section>

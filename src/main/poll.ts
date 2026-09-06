@@ -1,9 +1,10 @@
-import type { Health } from '@shared/types'
+import type { Health, MailAccountId } from '@shared/types'
 import { getConfig } from './config'
 import { fetchEvents, FeedError } from './feeds/calendar'
 import { fetchMail } from './feeds/mail'
-import { calendarUrl, noteCalendar, noteMailError } from './feeds/store'
+import { calendarUrl, noteBlueskyError, noteCalendar, noteMailError } from './feeds/store'
 import { ImapError } from './imap'
+import { BlueskyError, fetchUnread, isConfigured } from './sources/bluesky'
 import { readNotifications } from './sources/notifications'
 import { collectStats } from './stats'
 import { getState, goLive, setEvents, setSource, setStats } from './state'
@@ -21,12 +22,14 @@ const TASKS_MS = 2 * 60_000
 const STATS_MS = 5_000
 /** Toasts arrive when they arrive; a SQL query this cheap can look often. */
 const DISCORD_MS = 20_000
+const BLUESKY_MS = 2 * 60_000
 
 let calendarTimer: NodeJS.Timeout | null = null
 let mailTimer: NodeJS.Timeout | null = null
 let tasksTimer: NodeJS.Timeout | null = null
 let statsTimer: NodeJS.Timeout | null = null
 let discordTimer: NodeJS.Timeout | null = null
+let blueskyTimer: NodeJS.Timeout | null = null
 
 /**
  * Data already on screen is dimmed rather than blanked on a first failure.
@@ -36,7 +39,7 @@ let discordTimer: NodeJS.Timeout | null = null
 function failure(err: unknown, hadData: boolean): { health: Health; message: string } {
   const message = err instanceof Error ? err.message : String(err)
   if (hadData) return { health: 'stale', message }
-  const known = err instanceof FeedError || err instanceof ImapError
+  const known = err instanceof FeedError || err instanceof ImapError || err instanceof BlueskyError
   return { health: known ? 'setup-needed' : 'error', message }
 }
 
@@ -98,13 +101,17 @@ async function pollCalendar(): Promise<void> {
   )
 }
 
-async function pollMail(): Promise<void> {
-  const { mail, mailDetail } = getConfig().feeds
-  const enabled = mail.enabled && getConfig().sources.gmail.enabled
+/** Both mailboxes are IMAP; only the way in differs. */
+const MAIL_IDS: MailAccountId[] = ['gmail', 'proton']
 
-  if (!enabled || !mail.user.trim()) {
+async function pollMailbox(id: MailAccountId): Promise<void> {
+  const { mail, mailDetail } = getConfig().feeds
+  const account = mail[id]
+  const enabled = account.enabled && getConfig().sources[id].enabled
+
+  if (!enabled || !account.user.trim()) {
     if (!getState().mock) {
-      setSource('gmail', {
+      setSource(id, {
         health: 'unconfigured',
         count: 0,
         items: [],
@@ -115,12 +122,12 @@ async function pollMail(): Promise<void> {
     return
   }
 
-  const hadData = getState().sources.some((source) => source.id === 'gmail' && source.checkedAt !== null)
+  const hadData = getState().sources.some((source) => source.id === id && source.checkedAt !== null)
   try {
-    const { count, items } = await fetchMail(mail, mailDetail)
+    const { count, items } = await fetchMail(id, account, mailDetail)
     goLive()
-    noteMailError(null)
-    setSource('gmail', {
+    noteMailError(id, null)
+    setSource(id, {
       health: 'ok',
       count,
       items,
@@ -129,9 +136,49 @@ async function pollMail(): Promise<void> {
     })
   } catch (err) {
     const { health, message } = failure(err, hadData)
-    console.error('[mail]', message)
-    noteMailError(message)
-    setSource('gmail', { health, message })
+    console.error(`[mail:${id}]`, message)
+    noteMailError(id, message)
+    setSource(id, { health, message })
+  }
+}
+
+function pollMail(): void {
+  for (const id of MAIL_IDS) void pollMailbox(id)
+}
+
+async function pollBluesky(): Promise<void> {
+  if (!getConfig().sources.bluesky.enabled) return
+
+  if (!isConfigured()) {
+    if (!getState().mock) {
+      setSource('bluesky', {
+        health: 'unconfigured',
+        count: 0,
+        items: [],
+        checkedAt: null,
+        message: 'Not connected yet'
+      })
+    }
+    return
+  }
+
+  const hadData = getState().sources.some((source) => source.id === 'bluesky' && source.checkedAt !== null)
+  try {
+    const { count, items } = await fetchUnread(true)
+    goLive()
+    noteBlueskyError(null)
+    setSource('bluesky', {
+      health: 'ok',
+      count,
+      items,
+      checkedAt: new Date().toISOString(),
+      message: undefined
+    })
+  } catch (err) {
+    const { health, message } = failure(err, hadData)
+    console.error('[bluesky]', message)
+    noteBlueskyError(message)
+    setSource('bluesky', { health, message })
   }
 }
 
@@ -189,6 +236,7 @@ export function refreshNow(): void {
   void refreshTasks()
   void pollStats()
   pollDiscord()
+  void pollBluesky()
 }
 
 export function stopPolling(): void {
@@ -197,20 +245,47 @@ export function stopPolling(): void {
   if (tasksTimer) clearInterval(tasksTimer)
   if (statsTimer) clearInterval(statsTimer)
   if (discordTimer) clearInterval(discordTimer)
+  if (blueskyTimer) clearInterval(blueskyTimer)
   calendarTimer = null
   mailTimer = null
   tasksTimer = null
   statsTimer = null
   discordTimer = null
+  blueskyTimer = null
+}
+
+/**
+ * One line at boot saying what is actually configured. Every silent failure in
+ * this app so far has looked identical to "switched off", and this separates
+ * the two without needing to open settings.
+ */
+function describeSources(): void {
+  const config = getConfig()
+  const parts: string[] = []
+
+  const calendars = config.feeds.calendars.filter((feed) => feed.enabled && calendarUrl(feed.id))
+  parts.push(`calendars ${calendars.length}/${config.feeds.calendars.length}`)
+
+  for (const id of MAIL_IDS) {
+    const account = config.feeds.mail[id]
+    const ready = account.enabled && account.user.trim() !== ''
+    parts.push(`${id} ${ready ? account.user.trim() : 'off'}`)
+  }
+
+  parts.push(`bluesky ${isConfigured() ? config.bluesky.handle.trim() : 'off'}`)
+  parts.push(`tasks ${config.taskProvider}`)
+  console.log('[sources]', parts.join(', '))
 }
 
 /** Safe to call repeatedly: it restarts the loops and refreshes straight away. */
 export function startPolling(): void {
   stopPolling()
+  describeSources()
   calendarTimer = setInterval(() => void pollCalendar(), CALENDAR_MS)
   mailTimer = setInterval(() => void pollMail(), MAIL_MS)
   tasksTimer = setInterval(() => void refreshTasks(), TASKS_MS)
   statsTimer = setInterval(() => void pollStats(), STATS_MS)
   discordTimer = setInterval(pollDiscord, DISCORD_MS)
+  blueskyTimer = setInterval(() => void pollBluesky(), BLUESKY_MS)
   refreshNow()
 }

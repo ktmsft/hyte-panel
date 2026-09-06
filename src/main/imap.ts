@@ -1,9 +1,12 @@
-import { connect, type TLSSocket } from 'node:tls'
+import { connect as netConnect, type Socket } from 'node:net'
+import { connect as tlsConnect, type TLSSocket } from 'node:tls'
 
 /**
  * Just enough IMAP4rev1 for a dashboard: sign in, count unseen mail, and read a
- * few headers. Implicit TLS only, which covers Gmail on 993. Proton Bridge
- * wants STARTTLS on localhost, so phase 3 adds an upgrade path here.
+ * few headers.
+ *
+ * Two ways in. Implicit TLS on 993, which is Gmail. And STARTTLS, which begins
+ * in the clear and upgrades, which is Proton Bridge on loopback.
  */
 
 export interface ImapAccount {
@@ -11,6 +14,13 @@ export interface ImapAccount {
   port: number
   user: string
   password: string
+  /** `tls` connects encrypted; `starttls` upgrades an open connection. */
+  security: 'tls' | 'starttls'
+  /**
+   * Proton Bridge presents a certificate it signed itself, for a connection
+   * that never leaves the machine. Only ever set for loopback.
+   */
+  allowSelfSigned?: boolean
 }
 
 export interface UnseenPreview {
@@ -54,8 +64,10 @@ class Connection {
   private greeted = false
   private failure: Error | null = null
 
-  constructor(socket: TLSSocket) {
+  constructor(socket: TLSSocket, greeted = false) {
     this.socket = socket
+    // After a STARTTLS upgrade the server does not greet again.
+    this.greeted = greeted
     socket.on('data', (chunk: Buffer) => {
       this.buffer = Buffer.concat([this.buffer, chunk])
       this.drain()
@@ -180,20 +192,94 @@ class Connection {
   }
 }
 
-async function open(account: ImapAccount): Promise<Connection> {
-  const socket = await new Promise<TLSSocket>((resolve, reject) => {
-    const s = connect({ host: account.host, port: account.port, servername: account.host }, () => {
-      s.setTimeout(0)
-      resolve(s)
+/** Reads from a raw socket until the pattern appears, for the pre-TLS exchange. */
+function waitFor(socket: Socket, pattern: RegExp, what: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let seen = ''
+    const done = (err?: Error): void => {
+      clearTimeout(timer)
+      socket.off('data', onData)
+      socket.off('error', done)
+      if (err) reject(err)
+      else resolve()
+    }
+    const onData = (chunk: Buffer): void => {
+      seen += chunk.toString('utf8')
+      if (pattern.test(seen)) done()
+    }
+    const timer = setTimeout(() => done(new ImapError(`The mail server did not ${what}.`)), CONNECT_TIMEOUT_MS)
+    socket.on('data', onData)
+    socket.once('error', done)
+  })
+}
+
+function openSocket(account: ImapAccount): Promise<Socket> {
+  return new Promise((resolve, reject) => {
+    const socket = netConnect({ host: account.host, port: account.port }, () => {
+      socket.setTimeout(0)
+      resolve(socket)
     })
-    s.setTimeout(CONNECT_TIMEOUT_MS, () => {
-      s.destroy()
+    socket.setTimeout(CONNECT_TIMEOUT_MS, () => {
+      socket.destroy()
       reject(new ImapError(`No answer from ${account.host}:${account.port}.`))
     })
-    s.once('error', reject)
+    socket.once('error', reject)
   })
+}
 
-  const connection = new Connection(socket)
+/**
+ * Greets in the clear, asks for STARTTLS, then wraps the same socket. The
+ * exchange happens before the Connection exists, because nothing may be sent
+ * unencrypted afterwards and the greeting must not be read twice.
+ */
+async function upgradeSocket(account: ImapAccount): Promise<TLSSocket> {
+  const plain = await openSocket(account)
+  try {
+    await waitFor(plain, /^\* (OK|PREAUTH)\b/m, 'send a greeting')
+    plain.write('s0 STARTTLS\r\n')
+    await waitFor(plain, /^s0 OK\b/m, 'accept STARTTLS')
+  } catch (err) {
+    plain.destroy()
+    throw err
+  }
+
+  return new Promise<TLSSocket>((resolve, reject) => {
+    const secure = tlsConnect(
+      {
+        socket: plain,
+        servername: account.host,
+        rejectUnauthorized: account.allowSelfSigned !== true
+      },
+      () => resolve(secure)
+    )
+    secure.once('error', reject)
+  })
+}
+
+function implicitSocket(account: ImapAccount): Promise<TLSSocket> {
+  return new Promise((resolve, reject) => {
+    const socket = tlsConnect(
+      { host: account.host, port: account.port, servername: account.host },
+      () => {
+        socket.setTimeout(0)
+        resolve(socket)
+      }
+    )
+    socket.setTimeout(CONNECT_TIMEOUT_MS, () => {
+      socket.destroy()
+      reject(new ImapError(`No answer from ${account.host}:${account.port}.`))
+    })
+    socket.once('error', reject)
+  })
+}
+
+async function open(account: ImapAccount): Promise<Connection> {
+  if (account.security === 'starttls') {
+    // The greeting was consumed before the upgrade, so do not wait for another.
+    return new Connection(await upgradeSocket(account), true)
+  }
+
+  const connection = new Connection(await implicitSocket(account))
   await connection.greeting()
   return connection
 }
@@ -205,11 +291,14 @@ async function session<T>(account: ImapAccount, run: (c: Connection) => Promise<
     try {
       await connection.send(`LOGIN ${quote(account.user)} ${quote(account.password)}`)
     } catch (err) {
-      // Gmail answers a plain account password with a long help URL. Say the useful part.
+      // Gmail answers a plain account password with a long help URL, and
+      // Bridge with a terse refusal. Neither says what to do about it.
       const detail = err instanceof Error ? err.message : String(err)
-      throw new ImapError(
-        `Sign-in refused. Gmail needs an app password, with 2-step verification switched on, not your account password. (${detail})`
-      )
+      const hint =
+        account.security === 'starttls'
+          ? 'Proton Bridge has its own password, shown in Bridge under the account, not your Proton password.'
+          : 'Gmail needs an app password, with 2-step verification switched on, not your account password.'
+      throw new ImapError(`Sign-in refused. ${hint} (${detail})`)
     }
     const result = await run(connection)
     await connection.send('LOGOUT').catch(() => undefined)

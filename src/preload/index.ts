@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { HyteApi } from '@shared/api'
-import type { AppConfig, FeedsStatus, MicrosoftStatus, PanelState } from '@shared/types'
+import type { AppConfig, FeedsStatus, MailAccountId, MicrosoftStatus, PanelState } from '@shared/types'
 
 const api: HyteApi = {
   getState: () => ipcRenderer.invoke(IPC.stateGet),
@@ -32,7 +32,9 @@ const api: HyteApi = {
   calendarAdd: (label: string, url: string) => ipcRenderer.invoke(IPC.calendarAdd, label, url),
   calendarSetUrl: (id: string, url: string) => ipcRenderer.invoke(IPC.calendarSetUrl, id, url),
   calendarRemove: (id: string) => ipcRenderer.invoke(IPC.calendarRemove, id),
-  mailSetPassword: (password: string) => ipcRenderer.invoke(IPC.mailSetPassword, password),
+  mailSetPassword: (id: MailAccountId, password: string) =>
+    ipcRenderer.invoke(IPC.mailSetPassword, id, password),
+  blueskySetPassword: (password: string) => ipcRenderer.invoke(IPC.blueskySetPassword, password),
   feedsRefresh: () => ipcRenderer.invoke(IPC.feedsRefresh),
   microsoftStatus: () => ipcRenderer.invoke(IPC.microsoftStatus),
   onMicrosoftStatusChanged: (callback) => {

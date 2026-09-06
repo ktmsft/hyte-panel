@@ -14,6 +14,7 @@ export const IPC = {
   calendarSetUrl: 'feeds:calendar-set-url',
   calendarRemove: 'feeds:calendar-remove',
   mailSetPassword: 'feeds:mail-set-password',
+  blueskySetPassword: 'feeds:bluesky-set-password',
   microsoftStatus: 'microsoft:status',
   microsoftStatusChanged: 'microsoft:status-changed',
   microsoftConnect: 'microsoft:connect',

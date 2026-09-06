@@ -127,11 +127,17 @@ export interface CalendarFeed {
   enabled: boolean
 }
 
-/** IMAP over implicit TLS. Gmail is imap.gmail.com:993 with an app password. */
+/** Mailboxes the panel can count. Both are IMAP; only the way in differs. */
+export type MailAccountId = 'gmail' | 'proton'
+
+/** `tls` connects encrypted (Gmail, 993). `starttls` upgrades (Bridge, 1143). */
+export type MailSecurity = 'tls' | 'starttls'
+
 export interface MailAccount {
   host: string
   port: number
   user: string
+  security: MailSecurity
   enabled: boolean
 }
 
@@ -139,7 +145,7 @@ export interface FeedsConfig {
   calendars: CalendarFeed[]
   /** How far ahead the agenda looks. */
   calendarDays: number
-  mail: MailAccount
+  mail: Record<MailAccountId, MailAccount>
   mailDetail: MailDetail
 }
 
@@ -156,15 +162,28 @@ export interface CalendarHealth {
   checkedAt: string | null
 }
 
+/** Whether a credential is on file, and how the last refresh went. */
+export interface SourceHealth {
+  passwordSet: boolean
+  error: string | null
+}
+
 /** What the settings window may know. Credentials themselves never cross IPC. */
 export interface FeedsStatus {
   calendars: CalendarHealth[]
-  mailPasswordSet: boolean
-  mailError: string | null
+  mail: Record<MailAccountId, SourceHealth>
+  bluesky: SourceHealth
   /** False where safeStorage cannot encrypt, which blocks saving anything. */
   encryptionAvailable: boolean
   /** A failed credential write, as opposed to a failed refresh. */
   lastError: string | null
+}
+
+export interface BlueskyConfig {
+  /** Without the leading @. */
+  handle: string
+  /** The PDS to talk to. Only changes for self-hosted accounts. */
+  service: string
 }
 
 /** The cards on the panel, in the order they are stacked. */
@@ -263,6 +282,7 @@ export interface AppConfig {
   feeds: FeedsConfig
   taskProvider: TaskProviderId
   microsoft: MicrosoftConfig
+  bluesky: BlueskyConfig
   autostart: boolean
   /**
    * Hides the Windows taskbar on the panel display only. Windows itself has no

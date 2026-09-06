@@ -1,4 +1,4 @@
-import type { MailAccount, MailDetail, SourceItem } from '@shared/types'
+import type { MailAccount, MailAccountId, MailDetail, SourceItem } from '@shared/types'
 import { ImapError, unseenCount, unseenHeaders, type ImapAccount } from '../imap'
 import { mailPassword } from './store'
 
@@ -10,17 +10,33 @@ export interface MailResult {
   items: SourceItem[]
 }
 
-function resolve(account: MailAccount): ImapAccount {
-  const password = mailPassword()
+/** Loopback only: Bridge signs its own certificate for a local connection. */
+function isLoopback(host: string): boolean {
+  return /^(127\.\d+\.\d+\.\d+|localhost|::1)$/i.test(host.trim())
+}
+
+function resolve(id: MailAccountId, account: MailAccount): ImapAccount {
+  const password = mailPassword(id)
   if (!account.host.trim() || !account.user.trim()) {
     throw new ImapError('Add the mail server and address in settings first.')
   }
-  if (!password) throw new ImapError('Add the mail app password in settings first.')
-  return { host: account.host.trim(), port: account.port, user: account.user.trim(), password }
+  if (!password) throw new ImapError('Add the mail password in settings first.')
+  return {
+    host: account.host.trim(),
+    port: account.port,
+    user: account.user.trim(),
+    password,
+    security: account.security,
+    allowSelfSigned: account.security === 'starttls' && isLoopback(account.host)
+  }
 }
 
-export async function fetchMail(account: MailAccount, detail: MailDetail): Promise<MailResult> {
-  const resolved = resolve(account)
+export async function fetchMail(
+  id: MailAccountId,
+  account: MailAccount,
+  detail: MailDetail
+): Promise<MailResult> {
+  const resolved = resolve(id, account)
 
   if (detail !== 'subjects') return { count: await unseenCount(resolved), items: [] }
 

@@ -1,4 +1,11 @@
-import type { AppConfig, DisplayInfo, FeedsStatus, MicrosoftStatus, PanelState } from './types'
+import type {
+  AppConfig,
+  DisplayInfo,
+  FeedsStatus,
+  MailAccountId,
+  MicrosoftStatus,
+  PanelState
+} from './types'
 
 /** The complete surface the renderer is allowed to reach. Nothing else crosses the bridge. */
 export interface HyteApi {
@@ -17,7 +24,8 @@ export interface HyteApi {
   calendarSetUrl(id: string, url: string): Promise<FeedsStatus>
   calendarRemove(id: string): Promise<FeedsStatus>
   /** Stored in the OS-encrypted vault. An empty string keeps the saved one. */
-  mailSetPassword(password: string): Promise<FeedsStatus>
+  mailSetPassword(id: MailAccountId, password: string): Promise<FeedsStatus>
+  blueskySetPassword(password: string): Promise<FeedsStatus>
   feedsRefresh(): Promise<void>
   microsoftStatus(): Promise<MicrosoftStatus>
   /** Fires after a connect, disconnect or list refresh. Returns an unsubscribe function. */

@@ -14,7 +14,7 @@ badge clears the moment real data lands, and the seeded examples never come back
 | --- | --- | --- |
 | 1 | Shell, display detection, layout, theming | Done |
 | 2 | Calendar feeds, Gmail unread | Done |
-| 3 | Bluesky, Proton | Next |
+| 3 | Bluesky, Proton | Done |
 | 4 | Task backends, task entry | Done |
 | 5 | Windows notification listener, Discord | Done |
 | 6 | Packaging, overnight dimming | Planned |
@@ -91,6 +91,23 @@ HYTE Nexus knows the CPU temperature, since displaying it is the point of the
 Y70's screen, and its local service does answer on `127.0.0.1`. It returns 401 to
 everything, though, so reading it would mean reverse engineering a private,
 undocumented API that any Nexus update could change. Not worth building on.
+
+## Bluesky
+
+Settings, Bluesky. A handle and an app password, made in Bluesky under Settings,
+Privacy and security, App passwords. No OAuth, no consent screen, nothing to
+submit.
+
+An app password cannot change the account password or delete the account, which
+is the whole reason to use one.
+
+Sessions are held in memory only. Access tokens are short-lived, so a stale one
+is refreshed, and anything else falls back to signing in again, which the app
+password always permits. Nothing but the password is stored, so a lost session
+costs one request rather than a sign-in.
+
+Counts come from `app.bsky.notification.getUnreadCount`, with
+`listNotifications` filling in who did what. Refreshed every 2 minutes.
 
 ## Discord
 
@@ -211,10 +228,20 @@ card shows `Stale` instead.
 
 ## Mail
 
-Settings, Mail. IMAP over implicit TLS, `imap.gmail.com:993`.
+Settings, Mail. Two mailboxes, both IMAP; only the way in differs.
 
-Gmail needs an **app password**, which needs 2-Step Verification switched on:
+**Gmail** connects encrypted on `imap.gmail.com:993` and needs an **app
+password**, which needs 2-Step Verification switched on:
 `myaccount.google.com/security`, then `myaccount.google.com/apppasswords`.
+
+**Proton** goes through Proton Bridge, which needs a paid plan and has to be
+running: it is what turns the account into something IMAP can read. Bridge
+listens on `127.0.0.1:1143` and starts unencrypted, upgrading with STARTTLS, so
+`imap.ts` speaks both. Its password is Bridge's own, shown in Bridge beside the
+account, not the Proton password.
+
+Bridge signs its own certificate. That is accepted only when the host is
+loopback, so the exception cannot follow the setting to a real server.
 
 Read-only by construction: the mailbox is opened with `EXAMINE` and headers are
 read with `BODY.PEEK`, so nothing is ever marked as read. The count is the number
@@ -275,8 +302,8 @@ land. Refreshed every 2 minutes.
 | --- | --- | --- |
 | Calendar | Secret iCal URL | Nothing. Done, see above |
 | Gmail | IMAP | App password, so 2-Step Verification on. Done, see above |
-| Proton | Bridge local IMAP | paid Proton plan, and STARTTLS in `imap.ts` |
-| Bluesky | `getUnreadCount` | app password |
+| Proton | Bridge local IMAP | paid Proton plan, Bridge running. Done, see above |
+| Bluesky | `getUnreadCount` | app password. Done, see above |
 | Discord | Windows notification store | nothing. Done, see above |
 
 Discord has no supported way to read your own unread count. See below for what

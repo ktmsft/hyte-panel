@@ -6,7 +6,7 @@ import { DEFAULT_THEME } from '@shared/themes'
 
 // Settings live as plain JSON in userData. Credentials go through secrets.ts.
 
-export const CONFIG_VERSION = 3
+export const CONFIG_VERSION = 4
 
 export const DEFAULT_CONFIG: AppConfig = {
   configVersion: CONFIG_VERSION,
@@ -46,12 +46,17 @@ export const DEFAULT_CONFIG: AppConfig = {
     // Added by the user; each one pairs with a secret URL in the vault.
     calendars: [],
     calendarDays: 7,
-    mail: { host: 'imap.gmail.com', port: 993, user: '', enabled: true },
+    mail: {
+      gmail: { host: 'imap.gmail.com', port: 993, user: '', security: 'tls', enabled: true },
+      // Bridge listens on loopback and upgrades rather than starting encrypted.
+      proton: { host: '127.0.0.1', port: 1143, user: '', security: 'starttls', enabled: false }
+    },
     // Free over IMAP, unlike the Gmail API where it cost a restricted scope.
     mailDetail: 'subjects'
   },
   taskProvider: 'local',
   microsoft: { clientId: '', listId: null },
+  bluesky: { handle: '', service: 'https://bsky.social' },
   // Something mounted in the case should come back on its own.
   autostart: true,
   // Off by default: a fresh install should not quietly rearrange the desktop.
@@ -81,6 +86,14 @@ function merge(base: AppConfig, patch: Partial<AppConfig>): AppConfig {
 }
 
 /** Shape of the pre-versioning config, kept only so v0 files can be read. */
+/** The pre-v4 single mail account, before mailboxes were named. */
+interface LegacyMailAccount {
+  host: string
+  port: number
+  user: string
+  enabled: boolean
+}
+
 interface LegacyConfig extends Partial<AppConfig> {
   transparent?: boolean
   /** v2's Google OAuth block, removed when calendars moved to iCal feeds. */
@@ -110,6 +123,21 @@ function migrate(saved: LegacyConfig): Partial<AppConfig> {
   // v2 -> v3 replaced the Google OAuth block with `feeds`, which the merge
   // against DEFAULT_CONFIG supplies. Drop the dead key so it stops being saved.
   if (from < 3) delete (next as LegacyConfig).google
+
+  // v3 -> v4 turned the single mail account into one per mailbox. The old shape
+  // is recognised by having a host of its own rather than named accounts.
+  if (from < 4 && next.feeds) {
+    const mail = next.feeds.mail as unknown as LegacyMailAccount | undefined
+    if (mail && typeof mail.host === 'string') {
+      next.feeds = {
+        ...next.feeds,
+        mail: {
+          gmail: { ...mail, security: 'tls' },
+          ...DEFAULT_CONFIG.feeds.mail.proton ? { proton: DEFAULT_CONFIG.feeds.mail.proton } : {}
+        }
+      } as AppConfig['feeds']
+    }
+  }
 
   return next
 }

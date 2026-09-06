@@ -1,4 +1,4 @@
-import type { CalendarHealth, FeedsStatus } from '@shared/types'
+import type { CalendarHealth, FeedsStatus, MailAccountId } from '@shared/types'
 import { getConfig } from '../config'
 import { encryptionAvailable, getSecret, setSecret } from '../secrets'
 
@@ -9,10 +9,15 @@ import { encryptionAvailable, getSecret, setSecret } from '../secrets'
  */
 
 const CALENDAR_URL = 'calendar.url.'
-const MAIL_PASSWORD = 'mail.password'
+const MAIL_PASSWORD = 'mail.password.'
+const BLUESKY_PASSWORD = 'bluesky.appPassword'
+
+/** The pre-v4 key, when there was only one mailbox. */
+const LEGACY_MAIL_PASSWORD = 'mail.password'
 
 let lastError: string | null = null
-let mailError: string | null = null
+const mailErrors: Partial<Record<MailAccountId, string | null>> = {}
+let blueskyError: string | null = null
 
 /** Per-feed refresh results, keyed by calendar id. */
 const calendarHealth = new Map<string, Omit<CalendarHealth, 'id' | 'hasUrl'>>()
@@ -46,21 +51,49 @@ export function noteCalendar(id: string, error: string | null, events: number): 
   notify()
 }
 
-export function noteMailError(error: string | null): void {
-  if (mailError === error) return
-  mailError = error
+export function noteMailError(id: MailAccountId, error: string | null): void {
+  if (mailErrors[id] === error) return
+  mailErrors[id] = error
   notify()
 }
 
-export function mailPassword(): string | null {
-  return getSecret(MAIL_PASSWORD)
+export function mailPassword(id: MailAccountId): string | null {
+  return getSecret(MAIL_PASSWORD + id)
 }
 
-export function setMailPassword(password: string | null): void {
-  // App passwords are shown with spaces in groups of four; IMAP wants them gone.
-  setSecret(MAIL_PASSWORD, password ? password.replace(/\s+/g, '') : null)
-  mailError = null
+export function setMailPassword(id: MailAccountId, password: string | null): void {
+  // App passwords are shown in groups of four; IMAP wants the spaces gone.
+  setSecret(MAIL_PASSWORD + id, password ? password.replace(/\s+/g, '') : null)
+  mailErrors[id] = null
   notify()
+}
+
+export function blueskyPassword(): string | null {
+  return getSecret(BLUESKY_PASSWORD)
+}
+
+export function setBlueskyPassword(password: string | null): void {
+  setSecret(BLUESKY_PASSWORD, password ? password.replace(/\s+/g, '') : null)
+  blueskyError = null
+  notify()
+}
+
+export function noteBlueskyError(error: string | null): void {
+  if (blueskyError === error) return
+  blueskyError = error
+  notify()
+}
+
+/**
+ * The single mailbox became named ones in v4. Moves the old password across so
+ * an upgrade does not silently sign Gmail out.
+ */
+export function migrateSecrets(): void {
+  const legacy = getSecret(LEGACY_MAIL_PASSWORD)
+  if (legacy && !getSecret(MAIL_PASSWORD + 'gmail')) {
+    setSecret(MAIL_PASSWORD + 'gmail', legacy)
+  }
+  if (legacy) setSecret(LEGACY_MAIL_PASSWORD, null)
 }
 
 export function noteError(message: string | null): void {
@@ -78,8 +111,11 @@ export function feedsStatus(): FeedsStatus {
       events: calendarHealth.get(feed.id)?.events ?? 0,
       checkedAt: calendarHealth.get(feed.id)?.checkedAt ?? null
     })),
-    mailPasswordSet: mailPassword() !== null,
-    mailError,
+    mail: {
+      gmail: { passwordSet: mailPassword('gmail') !== null, error: mailErrors.gmail ?? null },
+      proton: { passwordSet: mailPassword('proton') !== null, error: mailErrors.proton ?? null }
+    },
+    bluesky: { passwordSet: blueskyPassword() !== null, error: blueskyError },
     encryptionAvailable: encryptionAvailable(),
     lastError
   }
