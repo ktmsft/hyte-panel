@@ -1,4 +1,4 @@
-import type { StatId, StatReading } from '@shared/types'
+import type { StatId, StatLevel, StatReading } from '@shared/types'
 import { getConfig } from '../config'
 import {
   cpuLoad,
@@ -42,18 +42,44 @@ const ORDER: StatId[] = [
 ]
 
 /**
- * Temperatures are shown as a bar across the band worth watching. From zero a
- * bar barely twitches between idle and load, which is the whole point of it.
+ * Bars start at 30C rather than zero: nothing runs below it, and from zero a bar
+ * barely twitches between idle and load, which is the whole point of it.
  */
 const TEMP_FLOOR = 30
-const TEMP_CEILING = 90
+
+/** Degrees short of the limit before a temperature is worth looking at. */
+const TEMP_WARN_HEADROOM = 10
+const TEMP_CRITICAL_HEADROOM = 3
+
+/** How full is too full, for the things that can actually run out. */
+const CAPACITY_WARN = 0.85
+const CAPACITY_CRITICAL = 0.95
 
 function clamp(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
-function tempFraction(celsius: number): number {
-  return clamp((celsius - TEMP_FLOOR) / (TEMP_CEILING - TEMP_FLOOR))
+/**
+ * Colour says whether to act, not how far along a bar something sits. A GPU at
+ * 100% load is the machine doing its job; a disk at 100% is a problem. So
+ * utilisation is never coloured, capacity is coloured when it is nearly full,
+ * and temperature is coloured by how close it is to its own real limit.
+ */
+function thermal(celsius: number, limit: number): { fraction: number; level: StatLevel } {
+  const headroom = limit - celsius
+  return {
+    fraction: clamp((celsius - TEMP_FLOOR) / Math.max(1, limit - TEMP_FLOOR)),
+    level:
+      headroom <= TEMP_CRITICAL_HEADROOM ? 'critical' : headroom <= TEMP_WARN_HEADROOM ? 'warn' : 'normal'
+  }
+}
+
+function capacity(used: number, total: number): { fraction: number; level: StatLevel } {
+  const fraction = total > 0 ? clamp(used / total) : 0
+  return {
+    fraction,
+    level: fraction >= CAPACITY_CRITICAL ? 'critical' : fraction >= CAPACITY_WARN ? 'warn' : 'normal'
+  }
 }
 
 /** Terabytes once a drive is big enough that gigabytes stop meaning anything. */
@@ -70,14 +96,15 @@ function stat(
   value: string,
   unit: string | null,
   detail: string | null = null,
-  fraction: number | null = null
+  fraction: number | null = null,
+  level: StatLevel = 'normal'
 ): StatReading {
-  return { id, label, value, unit, detail, fraction }
+  return { id, label, value, unit, detail, fraction, level }
 }
 
 /** A stat the user asked for that this machine cannot answer. */
 function unavailable(id: StatId, label: string, note: string): StatReading {
-  return { id, label, value: null, unit: null, detail: null, fraction: null, note }
+  return { id, label, value: null, unit: null, detail: null, fraction: null, level: 'normal', note }
 }
 
 function gpuStats(wanted: Set<StatId>, gpu: GpuReading | null): StatReading[] {
@@ -93,11 +120,23 @@ function gpuStats(wanted: Set<StatId>, gpu: GpuReading | null): StatReading[] {
     out.push(build(gpu) ?? unavailable(id, label, 'Not reported by this card'))
   }
 
-  add('gpuTemp', 'GPU temp', (g) =>
-    g.temperature === null
-      ? null
-      : stat('gpuTemp', 'GPU temp', String(Math.round(g.temperature)), '°C', null, tempFraction(g.temperature))
-  )
+  add('gpuTemp', 'GPU temp', (g) => {
+    if (g.temperature === null) return null
+    // No reported limit: show the number, but do not invent a judgement.
+    if (g.temperatureLimit === null) {
+      return stat('gpuTemp', 'GPU temp', String(Math.round(g.temperature)), '°C')
+    }
+    const { fraction, level } = thermal(g.temperature, g.temperatureLimit)
+    return stat(
+      'gpuTemp',
+      'GPU temp',
+      String(Math.round(g.temperature)),
+      '°C',
+      `limit ${Math.round(g.temperatureLimit)}°C`,
+      fraction,
+      level
+    )
+  })
   add('gpuLoad', 'GPU load', (g) =>
     g.load === null ? null : stat('gpuLoad', 'GPU load', String(Math.round(g.load)), '%', null, g.load / 100)
   )
@@ -105,14 +144,8 @@ function gpuStats(wanted: Set<StatId>, gpu: GpuReading | null): StatReading[] {
     if (g.memoryUsedMb === null || g.memoryTotalMb === null) return null
     const used = size(g.memoryUsedMb * 1024 ** 2)
     const total = size(g.memoryTotalMb * 1024 ** 2)
-    return stat(
-      'gpuVram',
-      'VRAM',
-      used.value,
-      used.unit,
-      `of ${total.value} ${total.unit}`,
-      g.memoryUsedMb / g.memoryTotalMb
-    )
+    const { fraction, level } = capacity(g.memoryUsedMb, g.memoryTotalMb)
+    return stat('gpuVram', 'VRAM', used.value, used.unit, `of ${total.value} ${total.unit}`, fraction, level)
   })
   add('gpuPower', 'GPU power', (g) =>
     g.watts === null ? null : stat('gpuPower', 'GPU power', String(Math.round(g.watts)), 'W')
@@ -159,8 +192,18 @@ export async function collectStats(): Promise<StatReading[]> {
   if (wanted.has('cpuTemp')) {
     const temp = await cpuTemperature()
     if ('celsius' in temp) {
+      const limit = getConfig().cpuTempLimit
+      const { fraction, level } = thermal(temp.celsius, limit)
       out.push(
-        stat('cpuTemp', 'CPU temp', String(Math.round(temp.celsius)), '°C', null, tempFraction(temp.celsius))
+        stat(
+          'cpuTemp',
+          'CPU temp',
+          String(Math.round(temp.celsius)),
+          '°C',
+          `limit ${Math.round(limit)}°C`,
+          fraction,
+          level
+        )
       )
     } else {
       out.push(
@@ -177,9 +220,8 @@ export async function collectStats(): Promise<StatReading[]> {
     const { usedBytes, totalBytes } = memory()
     const used = size(usedBytes)
     const total = size(totalBytes)
-    out.push(
-      stat('memory', 'Memory', used.value, used.unit, `of ${total.value} ${total.unit}`, usedBytes / totalBytes)
-    )
+    const { fraction, level } = capacity(usedBytes, totalBytes)
+    out.push(stat('memory', 'Memory', used.value, used.unit, `of ${total.value} ${total.unit}`, fraction, level))
   }
 
   out.push(...gpuStats(wanted, gpu))
@@ -192,16 +234,8 @@ export async function collectStats(): Promise<StatReading[]> {
     } else {
       const used = size(usage.usedBytes)
       const total = size(usage.totalBytes)
-      out.push(
-        stat(
-          'disk',
-          'Disk',
-          used.value,
-          used.unit,
-          `of ${total.value} ${total.unit}`,
-          usage.usedBytes / usage.totalBytes
-        )
-      )
+      const { fraction, level } = capacity(usage.usedBytes, usage.totalBytes)
+      out.push(stat('disk', 'Disk', used.value, used.unit, `of ${total.value} ${total.unit}`, fraction, level))
     }
   }
 

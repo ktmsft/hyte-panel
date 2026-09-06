@@ -38,6 +38,29 @@ Refreshed every 5 seconds. `nvidia-smi` installs with the NVIDIA driver, sits on
 `PATH`, and needs no permissions, which makes the GPU the one piece of real
 hardware telemetry available for nothing.
 
+### What the colours mean
+
+Amber and red mean act, not merely "high". Which needs different rules per stat,
+because the same number means different things:
+
+| Kind | Stats | Rule |
+| --- | --- | --- |
+| Temperature | CPU, GPU | Amber within 10°C of the limit, red within 3°C |
+| Capacity | Memory, VRAM, disk | Amber at 85% full, red at 95% |
+| Utilisation | Load, fan, power | Never coloured |
+
+A GPU at 100% load is the machine doing its job; a disk at 100% is a problem. So
+utilisation gets a bar and no judgement.
+
+The GPU's limit is not guessed: `temperature.gpu.tlimit` reports how many degrees
+of headroom the card has left, so the throttle point is the current reading plus
+that. On the 5090 here it works out at 91°C.
+
+The CPU has no such source, so **CPU temperature limit** is a setting, at 95°C by
+default. That is AMD's maximum operating temperature for Ryzen 9000. Intel is
+often 100, and older X3D parts 89. A wrong limit means wrong colours, so it is
+worth checking against your own chip.
+
 **CPU temperature is the awkward one.** Windows has no supported way to read it
 on a modern desktop CPU: it lives in registers that need a kernel driver.
 `MSAcpi_ThermalZoneTemperature` answers "Not supported" on this class of machine,

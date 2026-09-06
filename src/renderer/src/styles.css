@@ -885,10 +885,12 @@ button {
   transition: width 0.6s ease, background-color 0.6s ease;
 }
 
-.stat-fill.warm {
+/* Only shown when something is worth acting on: a temperature near its limit,
+   or a disk near full. Being busy is not a warning. */
+.stat-fill.warn {
   background: var(--warn);
 }
 
-.stat-fill.hot {
+.stat-fill.critical {
   background: var(--err);
 }

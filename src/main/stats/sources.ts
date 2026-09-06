@@ -21,6 +21,11 @@ export interface GpuReading {
   memoryTotalMb: number | null
   watts: number | null
   fanPercent: number | null
+  /**
+   * Celsius at which this card throttles, worked out from the driver's own
+   * reported headroom rather than guessed. Null if it does not report it.
+   */
+  temperatureLimit: number | null
 }
 
 const SPAWN_TIMEOUT_MS = 8000
@@ -104,7 +109,9 @@ const GPU_FIELDS = [
   'memory.used',
   'memory.total',
   'power.draw',
-  'fan.speed'
+  'fan.speed',
+  // Degrees still in hand before throttling, not a temperature itself.
+  'temperature.gpu.tlimit'
 ] as const
 
 /** `[N/A]` is what nvidia-smi prints for a field a card does not report. */
@@ -140,8 +147,14 @@ export async function nvidiaGpu(): Promise<GpuReading | null> {
     memoryUsedMb: num(cells[3]),
     memoryTotalMb: num(cells[4]),
     watts: num(cells[5]),
-    fanPercent: num(cells[6])
+    fanPercent: num(cells[6]),
+    temperatureLimit: limitFrom(num(cells[1]), num(cells[7]))
   }
+}
+
+/** tlimit counts down to the throttle point, so the limit is now plus headroom. */
+function limitFrom(temperature: number | null, headroom: number | null): number | null {
+  return temperature === null || headroom === null ? null : temperature + headroom
 }
 
 // ---------------------------------------------------------------- cpu temperature

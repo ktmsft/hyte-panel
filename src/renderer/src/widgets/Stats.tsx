@@ -4,16 +4,6 @@ interface Props {
   stats: StatReading[]
 }
 
-/** Above these a bar turns warm, so a hot machine reads without being read. */
-const HOT = 0.85
-const WARM = 0.7
-
-function band(fraction: number): string {
-  if (fraction >= HOT) return ' hot'
-  if (fraction >= WARM) return ' warm'
-  return ''
-}
-
 export function Stats({ stats }: Props) {
   return (
     <div class="card">
@@ -50,7 +40,8 @@ export function Stats({ stats }: Props) {
                 {stat.fraction !== null && (
                   <div class="stat-bar">
                     <span
-                      class={`stat-fill${band(stat.fraction)}`}
+                      // Judged in main, where the real limits are known.
+                      class={`stat-fill ${stat.level}`}
                       style={{ width: `${Math.round(Math.min(1, Math.max(0, stat.fraction)) * 100)}%` }}
                     />
                   </div>

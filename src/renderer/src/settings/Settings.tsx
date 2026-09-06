@@ -483,6 +483,28 @@ export function Settings() {
             <span class="todo-note">{note}</span>
           </div>
         ))}
+        <div class="row">
+          <span>CPU temperature limit</span>
+          <input
+            type="range"
+            min="70"
+            max="110"
+            step="1"
+            value={config.cpuTempLimit}
+            onInput={(event) => void patch({ cpuTempLimit: Number(event.currentTarget.value) })}
+          />
+          <span class="value">{config.cpuTempLimit}°C</span>
+        </div>
+        <p class="hint">
+          A bar turns amber within 10°C of the limit and red within 3°C, so the colour means act rather
+          than simply "high". 95°C suits Ryzen 9000; Intel is often 100, and older X3D parts 89. Check
+          your own chip's maximum operating temperature. The GPU needs no setting: its driver reports how
+          much headroom it has left, and the card uses that.
+        </p>
+        <p class="hint">
+          Memory, VRAM and disk go amber at 85% full and red at 95%, because running out is a real
+          problem. Load and fan speed are never coloured: a GPU at 100% is the machine doing its job.
+        </p>
         <p class="hint">
           The card is two columns filled in the order above, so heat and capacity land on the left and how
           hard something is working lands on the right. Switching one off closes the gap rather than

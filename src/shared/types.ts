@@ -187,6 +187,12 @@ export type StatId =
   | 'disk'
   | 'uptime'
 
+/**
+ * Whether a number is worth acting on, decided where the real limits are known
+ * rather than from how far along a bar it happens to sit.
+ */
+export type StatLevel = 'normal' | 'warn' | 'critical'
+
 export interface StatReading {
   id: StatId
   label: string
@@ -196,8 +202,9 @@ export interface StatReading {
   unit: string | null
   /** The small line underneath, such as "of 93.5 GB". */
   detail: string | null
-  /** 0 to 1 where the stat has a natural full scale, so a bar can be drawn. */
+  /** 0 to 1 against the thing's real limit, so a bar can be drawn. */
   fraction: number | null
+  level: StatLevel
   /** Why the value is missing, shown in its place. Kept short: it sits in a tile. */
   note?: string
 }
@@ -240,6 +247,12 @@ export interface AppConfig {
   panels: Record<PanelId, boolean>
   /** Which numbers the System card shows. */
   stats: Record<StatId, boolean>
+  /**
+   * Celsius at which the CPU is considered at its limit, used for the bar and
+   * its colour. 95 suits Ryzen 9000; Intel is often 100, older X3D parts 89.
+   * The GPU needs no equivalent: its driver reports its own headroom.
+   */
+  cpuTempLimit: number
   theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
   feeds: FeedsConfig

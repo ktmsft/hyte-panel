@@ -32,6 +32,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     disk: false,
     uptime: false
   },
+  // AMD gives the 9800X3D a 95C maximum operating temperature.
+  cpuTempLimit: 95,
   theme: DEFAULT_THEME,
   sources: {
     gmail: { enabled: true },
