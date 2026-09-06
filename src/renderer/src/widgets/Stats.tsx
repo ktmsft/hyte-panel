@@ -4,7 +4,7 @@ interface Props {
   stats: StatReading[]
 }
 
-/** Above this a bar turns warm, so a hot card is visible without reading it. */
+/** Above these a bar turns warm, so a hot machine reads without being read. */
 const HOT = 0.85
 const WARM = 0.7
 
@@ -21,27 +21,38 @@ export function Stats({ stats }: Props) {
         <span>System</span>
       </div>
       <div class="card-body">
-        {stats.length === 0 && <div class="empty">No stats switched on.</div>}
+        {stats.length === 0 ? (
+          <div class="empty">No stats switched on.</div>
+        ) : (
+          <div class="stat-grid">
+            {stats.map((stat) => (
+              <div class="stat-tile" key={stat.id}>
+                <div class="stat-label">{stat.label}</div>
 
-        {stats.map((stat) => (
-          <div class="stat" key={stat.id}>
-            <div class="stat-head">
-              <span class="stat-label">{stat.label}</span>
-              <span class={`stat-value${stat.value === null ? ' missing' : ''}`}>
-                {stat.value ?? 'Unavailable'}
-              </span>
-            </div>
-            {stat.fraction !== null && (
-              <div class="stat-bar">
-                <span
-                  class={`stat-fill${band(stat.fraction)}`}
-                  style={{ width: `${Math.round(Math.min(1, Math.max(0, stat.fraction)) * 100)}%` }}
-                />
+                {stat.value === null ? (
+                  <div class="stat-missing">{stat.note ?? 'Unavailable'}</div>
+                ) : (
+                  <>
+                    <div class="stat-number">
+                      {stat.value}
+                      {stat.unit && <span class="stat-unit">{stat.unit}</span>}
+                    </div>
+                    {stat.detail && <div class="stat-detail">{stat.detail}</div>}
+                  </>
+                )}
+
+                {stat.fraction !== null && (
+                  <div class="stat-bar">
+                    <span
+                      class={`stat-fill${band(stat.fraction)}`}
+                      style={{ width: `${Math.round(Math.min(1, Math.max(0, stat.fraction)) * 100)}%` }}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-            {stat.value === null && stat.note && <div class="stat-note">{stat.note}</div>}
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   )

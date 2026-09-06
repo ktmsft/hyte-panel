@@ -190,11 +190,15 @@ export type StatId =
 export interface StatReading {
   id: StatId
   label: string
-  /** Ready to print. Null when this machine cannot answer it. */
+  /** The big number, on its own. Null when this machine cannot answer it. */
   value: string | null
+  /** Set tight against the number: %, GB, W. */
+  unit: string | null
+  /** The small line underneath, such as "of 93.5 GB". */
+  detail: string | null
   /** 0 to 1 where the stat has a natural full scale, so a bar can be drawn. */
   fraction: number | null
-  /** Why the value is missing, shown in its place. */
+  /** Why the value is missing, shown in its place. Kept short: it sits in a tile. */
   note?: string
 }
 

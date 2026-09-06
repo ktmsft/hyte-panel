@@ -18,37 +18,48 @@ const GPU_STATS: StatId[] = ['gpuTemp', 'gpuLoad', 'gpuVram', 'gpuPower', 'gpuFa
 /** Checked once: without LibreHardwareMonitor there is no point spawning WMI. */
 let monitorPresent: boolean | null = null
 
-function gb(bytes: number): string {
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+/**
+ * Temperatures are shown as a bar across the band worth watching. From zero a
+ * bar barely twitches between idle and load, which is the whole point of it.
+ */
+const TEMP_FLOOR = 30
+const TEMP_CEILING = 90
+
+function clamp(value: number): number {
+  return Math.min(1, Math.max(0, value))
 }
 
-function duration(seconds: number): string {
-  const days = Math.floor(seconds / 86_400)
-  const hours = Math.floor((seconds % 86_400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (days > 0) return `${days}d ${hours}h`
-  if (hours > 0) return `${hours}h ${minutes}m`
-  return `${minutes}m`
+function tempFraction(celsius: number): number {
+  return clamp((celsius - TEMP_FLOOR) / (TEMP_CEILING - TEMP_FLOOR))
 }
 
-function reading(
+/** Terabytes once a drive is big enough that gigabytes stop meaning anything. */
+function size(bytes: number): { value: string; unit: string } {
+  const gb = bytes / 1024 ** 3
+  return gb >= 1024
+    ? { value: (gb / 1024).toFixed(1), unit: 'TB' }
+    : { value: gb.toFixed(gb >= 100 ? 0 : 1), unit: 'GB' }
+}
+
+function stat(
   id: StatId,
   label: string,
-  value: string | null,
-  fraction: number | null = null,
-  note?: string
+  value: string,
+  unit: string | null,
+  detail: string | null = null,
+  fraction: number | null = null
 ): StatReading {
-  return { id, label, value, fraction, note }
+  return { id, label, value, unit, detail, fraction }
 }
 
 /** A stat the user asked for that this machine cannot answer. */
 function unavailable(id: StatId, label: string, note: string): StatReading {
-  return reading(id, label, null, null, note)
+  return { id, label, value: null, unit: null, detail: null, fraction: null, note }
 }
 
 function gpuStats(wanted: Set<StatId>, gpu: GpuReading | null): StatReading[] {
   const out: StatReading[] = []
-  const missing = 'No NVIDIA GPU found. nvidia-smi ships with the driver.'
+  const missing = 'No NVIDIA card found'
 
   const add = (id: StatId, label: string, build: (g: GpuReading) => StatReading | null): void => {
     if (!wanted.has(id)) return
@@ -56,34 +67,49 @@ function gpuStats(wanted: Set<StatId>, gpu: GpuReading | null): StatReading[] {
       out.push(unavailable(id, label, missing))
       return
     }
-    out.push(build(gpu) ?? unavailable(id, label, 'This card does not report it.'))
+    out.push(build(gpu) ?? unavailable(id, label, 'Not reported by this card'))
   }
 
   add('gpuTemp', 'GPU temp', (g) =>
-    g.temperature === null ? null : reading('gpuTemp', 'GPU temp', `${Math.round(g.temperature)}°C`,
-      // 30 to 90 is the band worth seeing move; a bar from zero barely twitches.
-      Math.min(1, Math.max(0, (g.temperature - 30) / 60)))
+    g.temperature === null
+      ? null
+      : stat('gpuTemp', 'GPU temp', String(Math.round(g.temperature)), '°C', null, tempFraction(g.temperature))
   )
   add('gpuLoad', 'GPU load', (g) =>
-    g.load === null ? null : reading('gpuLoad', 'GPU load', `${Math.round(g.load)}%`, g.load / 100)
+    g.load === null ? null : stat('gpuLoad', 'GPU load', String(Math.round(g.load)), '%', null, g.load / 100)
   )
-  add('gpuVram', 'VRAM', (g) =>
-    g.memoryUsedMb === null || g.memoryTotalMb === null
-      ? null
-      : reading(
-          'gpuVram',
-          'VRAM',
-          `${(g.memoryUsedMb / 1024).toFixed(1)} / ${(g.memoryTotalMb / 1024).toFixed(1)} GB`,
-          g.memoryUsedMb / g.memoryTotalMb
-        )
-  )
+  add('gpuVram', 'VRAM', (g) => {
+    if (g.memoryUsedMb === null || g.memoryTotalMb === null) return null
+    const used = size(g.memoryUsedMb * 1024 ** 2)
+    const total = size(g.memoryTotalMb * 1024 ** 2)
+    return stat(
+      'gpuVram',
+      'VRAM',
+      used.value,
+      used.unit,
+      `of ${total.value} ${total.unit}`,
+      g.memoryUsedMb / g.memoryTotalMb
+    )
+  })
   add('gpuPower', 'GPU power', (g) =>
-    g.watts === null ? null : reading('gpuPower', 'GPU power', `${Math.round(g.watts)} W`)
+    g.watts === null ? null : stat('gpuPower', 'GPU power', String(Math.round(g.watts)), 'W')
   )
   add('gpuFan', 'GPU fan', (g) =>
-    g.fanPercent === null ? null : reading('gpuFan', 'GPU fan', `${Math.round(g.fanPercent)}%`, g.fanPercent / 100)
+    g.fanPercent === null
+      ? null
+      : stat('gpuFan', 'GPU fan', String(Math.round(g.fanPercent)), '%', null, g.fanPercent / 100)
   )
   return out
+}
+
+/** Days once it has been up that long, since hours stop being readable. */
+function uptimeStat(seconds: number): StatReading {
+  const days = Math.floor(seconds / 86_400)
+  const hours = Math.floor((seconds % 86_400) / 3600)
+  if (days > 0) return stat('uptime', 'Uptime', String(days), days === 1 ? 'day' : 'days', `${hours}h`)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  if (hours > 0) return stat('uptime', 'Uptime', String(hours), 'h', `${minutes}m`)
+  return stat('uptime', 'Uptime', String(minutes), 'm')
 }
 
 export async function collectStats(): Promise<StatReading[]> {
@@ -101,35 +127,31 @@ export async function collectStats(): Promise<StatReading[]> {
     const load = cpuLoad()
     out.push(
       load === null
-        ? reading('cpuLoad', 'CPU load', '--', null)
-        : reading('cpuLoad', 'CPU load', `${Math.round(load)}%`, load / 100)
+        ? stat('cpuLoad', 'CPU load', '--', null)
+        : stat('cpuLoad', 'CPU load', String(Math.round(load)), '%', null, load / 100)
     )
   }
 
   if (wanted.has('cpuTemp')) {
     if (monitorPresent === null) monitorPresent = await hasHardwareMonitor()
     if (!monitorPresent) {
-      out.push(
-        unavailable(
-          'cpuTemp',
-          'CPU temp',
-          'Windows has no supported way to read this. Install LibreHardwareMonitor and leave it running as administrator.'
-        )
-      )
+      out.push(unavailable('cpuTemp', 'CPU temp', 'Needs LibreHardwareMonitor'))
     } else {
       const temp = await cpuTemperature()
       out.push(
         temp === null
-          ? unavailable('cpuTemp', 'CPU temp', 'LibreHardwareMonitor is running but reported no CPU sensor.')
-          : reading('cpuTemp', 'CPU temp', `${Math.round(temp)}°C`, Math.min(1, Math.max(0, (temp - 30) / 60)))
+          ? unavailable('cpuTemp', 'CPU temp', 'No CPU sensor reported')
+          : stat('cpuTemp', 'CPU temp', String(Math.round(temp)), '°C', null, tempFraction(temp))
       )
     }
   }
 
   if (wanted.has('memory')) {
     const { usedBytes, totalBytes } = memory()
+    const used = size(usedBytes)
+    const total = size(totalBytes)
     out.push(
-      reading('memory', 'Memory', `${gb(usedBytes)} / ${gb(totalBytes)}`, usedBytes / totalBytes)
+      stat('memory', 'Memory', used.value, used.unit, `of ${total.value} ${total.unit}`, usedBytes / totalBytes)
     )
   }
 
@@ -138,16 +160,25 @@ export async function collectStats(): Promise<StatReading[]> {
   if (wanted.has('disk')) {
     const root = process.env.SystemDrive ? `${process.env.SystemDrive}\\` : '/'
     const usage = await disk(root)
-    out.push(
-      usage === null
-        ? unavailable('disk', 'Disk', `Could not read ${root}.`)
-        : reading('disk', 'Disk', `${gb(usage.usedBytes)} / ${gb(usage.totalBytes)}`, usage.usedBytes / usage.totalBytes)
-    )
+    if (usage === null) {
+      out.push(unavailable('disk', 'Disk', `Could not read ${root}`))
+    } else {
+      const used = size(usage.usedBytes)
+      const total = size(usage.totalBytes)
+      out.push(
+        stat(
+          'disk',
+          'Disk',
+          used.value,
+          used.unit,
+          `of ${total.value} ${total.unit}`,
+          usage.usedBytes / usage.totalBytes
+        )
+      )
+    }
   }
 
-  if (wanted.has('uptime')) {
-    out.push(reading('uptime', 'Uptime', duration(uptimeSeconds())))
-  }
+  if (wanted.has('uptime')) out.push(uptimeStat(uptimeSeconds()))
 
   return out
 }
