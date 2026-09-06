@@ -11,6 +11,19 @@ import { getState, subscribe, syncSourcesEnabled, syncTaskProvider } from './sta
 import { addTask, refreshTasks, removeTask, toggleTask } from './tasks'
 import * as microsoft from './tasks/microsoft'
 
+/**
+ * Above ordinary topmost windows. HYTE Nexus wants this display too and also
+ * asks to be on top, which made it last-writer-wins and cost the panel its own
+ * screen at random. This band outranks a plain topmost window outright.
+ *
+ * Safe despite the name: the window is pinned to the panel's bounds, so it can
+ * never cover anything on another display.
+ */
+const PANEL_Z_LEVEL = 'screen-saver' as const
+
+/** Nexus reclaims the display on its own schedule, so this is re-applied. */
+const KEEP_ON_TOP_MS = 30_000
+
 /** HYTE_WINDOWED=1 gives a normal resizable window for layout work. */
 const WINDOWED = process.env.HYTE_WINDOWED === '1'
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL
@@ -70,7 +83,16 @@ function createPanelWindow(): void {
   })
 
   const thisWindow = panelWindow
-  thisWindow.once('ready-to-show', () => thisWindow.show())
+  thisWindow.once('ready-to-show', () => {
+    thisWindow.show()
+    if (!WINDOWED) {
+      // Windows clamps a new window to the work area, which left a strip along
+      // the bottom where the taskbar used to be. Re-applying the display's own
+      // bounds takes the whole screen.
+      thisWindow.setBounds(display.bounds)
+      assertPanelOnTop()
+    }
+  })
   thisWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('[panel] renderer gone:', details.reason)
   })
@@ -113,6 +135,13 @@ function refreshKey(config: AppConfig): string {
     mail: feeds.mail,
     calendars: feeds.calendars.map((feed) => [feed.id, feed.enabled, feed.color])
   })
+}
+
+/** Re-claims the panel display. Cheap, in-process, and does not steal focus. */
+function assertPanelOnTop(): void {
+  if (WINDOWED || !panelWindow || panelWindow.isDestroyed()) return
+  if (!getConfig().alwaysOnTop) return
+  panelWindow.setAlwaysOnTop(true, PANEL_Z_LEVEL)
 }
 
 /**
@@ -163,7 +192,7 @@ function movePanelToDisplay(displayId: number): void {
   }
 
   panelWindow.setBounds(display.bounds)
-  panelWindow.setAlwaysOnTop(getConfig().alwaysOnTop)
+  panelWindow.setAlwaysOnTop(getConfig().alwaysOnTop, PANEL_Z_LEVEL)
   syncPanelTaskbar()
 }
 
@@ -256,7 +285,7 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
 
   if (panelWindow && !WINDOWED) {
     if (previous.alwaysOnTop !== next.alwaysOnTop) {
-      panelWindow.setAlwaysOnTop(next.alwaysOnTop)
+      panelWindow.setAlwaysOnTop(next.alwaysOnTop, PANEL_Z_LEVEL)
     }
     if (next.glassMode === 'solid' && previous.theme.background !== next.theme.background) {
       panelWindow.setBackgroundColor(next.theme.background)
@@ -421,6 +450,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     startPolling()
     syncPanelTaskbar()
+    setInterval(assertPanelOnTop, KEEP_ON_TOP_MS).unref()
 
     // The panel enumerates late at boot and vanishes if unplugged.
     // A shell that rebuilds its taskbars undoes the hiding, and these are the
@@ -431,7 +461,10 @@ if (!app.requestSingleInstanceLock()) {
       syncPanelTaskbar()
     })
 
-    screen.on('display-metrics-changed', () => syncPanelTaskbar())
+    screen.on('display-metrics-changed', () => {
+      syncPanelTaskbar()
+      assertPanelOnTop()
+    })
 
     screen.on('display-removed', (_event, removed) => {
       if (removed.id !== activeDisplayId || !panelWindow) return
