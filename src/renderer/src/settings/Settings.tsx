@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
 import type {
   AlertsLayout,
@@ -59,6 +60,62 @@ const GLASS_NOTES: Record<GlassMode, string> = {
   solid: 'Paints its own background and ignores the wallpaper.'
 }
 
+const SECTION_KEYWORDS: Record<string, string> = {
+  'Display': 'monitor screen resolution which display panel detection primary',
+  'Calendars': 'ical ics google feed agenda events secret address basic.ics days ahead',
+  'Mail': 'gmail proton imap unread inbox password bridge starttls tls app password subjects',
+  'Bluesky': 'at protocol handle app password notifications social bsky',
+  'Panels': 'cards order drag reorder hide show clock time 12 24 hour am pm',
+  'Picture': 'image gif photo folder slideshow rotate height fit cover contain',
+  'System stats': 'cpu gpu temperature memory ram vram disk uptime nvidia librehardwaremonitor load fan power limit',
+  'Wallpaper Engine': 'glass frosted clear solid transparency always on top wallpaper',
+  'Theme': 'colour color preset font text size opacity shadow spacing gap tint',
+  'Alerts': 'sources notifications layout tiles rows launch open discord gmail proton bluesky',
+  'Tasks': 'microsoft to do google tasks list client id entra todo',
+  'Behaviour': 'startup autostart start with windows taskbar hide dim overnight quit close',
+}
+
+const SECTION_TITLES = Object.keys(SECTION_KEYWORDS)
+
+const ALL_OPEN: Record<string, boolean> = { 'Display': true, 'Calendars': true, 'Mail': true, 'Bluesky': true, 'Panels': true, 'Picture': true, 'System stats': true, 'Wallpaper Engine': true, 'Theme': true, 'Alerts': true, 'Tasks': true, 'Behaviour': true }
+
+/** What a collapsible section needs from the page around it. */
+interface SectionUi {
+  query: string
+  isOpen(title: string): boolean
+  toggle(title: string): void
+}
+
+interface SectionProps {
+  title: string
+  /** Words that should find this section, beyond its own title. */
+  keywords: string
+  ui: SectionUi
+  children: ComponentChildren
+}
+
+/**
+ * Collapsed by default. There are a dozen of these now, and every control at
+ * once is what made this page hard to move around.
+ */
+function Section({ title, keywords, ui, children }: SectionProps) {
+  const needle = ui.query.trim().toLowerCase()
+  if (needle && !`${title} ${keywords}`.toLowerCase().includes(needle)) return null
+
+  // A search is a request to see what matched, so a hit opens itself.
+  const shown = ui.isOpen(title) || needle !== ''
+
+  return (
+    <section>
+      <button class="section-head" onClick={() => ui.toggle(title)} aria-expanded={shown}>
+        <span>{title}</span>
+        <span class="section-caret">{shown ? '\u2212' : '+'}</span>
+      </button>
+      {shown && <div class="section-body">{children}</div>}
+    </section>
+  )
+}
+
 export function Settings() {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [displays, setDisplays] = useState<DisplayInfo[]>([])
@@ -73,6 +130,8 @@ export function Settings() {
   const [clientIdDraft, setClientIdDraft] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [dragging, setDragging] = useState<PanelId | null>(null)
+  const [query, setQuery] = useState('')
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     void window.hyte.getConfig().then(setConfig)
@@ -197,13 +256,39 @@ export function Settings() {
     })
   }
 
+  const ui: SectionUi = {
+    query,
+    isOpen: (title) => openSections[title] === true,
+    toggle: (title) => setOpenSections({ ...openSections, [title]: !openSections[title] })
+  }
+
+  const matched = SECTION_TITLES.filter((title) =>
+    query.trim() === '' ? true : `${title} ${SECTION_KEYWORDS[title] ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())
+  )
+
   return (
     <div class="settings">
       <h1>Hyte Panel</h1>
       <p class="lede">On your desktop, not the panel, so you have a keyboard.</p>
 
-      <section>
-        <h2>Display</h2>
+      <div class="settings-tools">
+        <input
+          type="search"
+          placeholder="Search settings"
+          value={query}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+        />
+        <button class="action" onClick={() => setOpenSections(ALL_OPEN)}>
+          Expand all
+        </button>
+        <button class="action" onClick={() => setOpenSections({})}>
+          Collapse all
+        </button>
+      </div>
+
+      {matched.length === 0 && <p class="no-matches">Nothing matches “{query}”.</p>}
+
+      <Section title="Display" keywords="monitor screen resolution which display panel detection primary" ui={ui}>
         {displays.map((display) => (
           <button
             key={display.id}
@@ -223,10 +308,9 @@ export function Settings() {
           Auto-detection looks for {config.displayMatch.width} x {config.displayMatch.height} in either
           orientation, then any non-primary display three times longer than it is wide.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Calendars</h2>
+      <Section title="Calendars" keywords="ical ics google feed agenda events secret address basic.ics days ahead" ui={ui}>
         <p class="lede">Each one is an iCalendar feed, read straight over HTTPS. No sign-in.</p>
 
         {feeds && !feeds.encryptionAvailable && (
@@ -350,10 +434,9 @@ export function Settings() {
           Refreshed every 5 minutes. Google regenerates these feeds on its own schedule, so an event
           added seconds ago can take a while to appear.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Mail</h2>
+      <Section title="Mail" keywords="gmail proton imap unread inbox password bridge starttls tls app password subjects" ui={ui}>
         <p class="lede">Unread counts over IMAP. No OAuth, nothing to verify.</p>
 
         <details class="steps" open={!feeds?.mail.gmail.passwordSet}>
@@ -502,10 +585,9 @@ export function Settings() {
         </p>
 
         {feeds?.lastError && <p class="notice error">{feeds.lastError}</p>}
-      </section>
+      </Section>
 
-      <section>
-        <h2>Bluesky</h2>
+      <Section title="Bluesky" keywords="at protocol handle app password notifications social bsky" ui={ui}>
         <p class="lede">Unread notifications. An app password is all it takes.</p>
 
         <details class="steps" open={!feeds?.bluesky.passwordSet}>
@@ -555,10 +637,9 @@ export function Settings() {
           Refreshed every 2 minutes. The service is <code>{config.bluesky.service}</code>, which only needs
           changing for a self-hosted account.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Panels</h2>
+      <Section title="Panels" keywords="cards order drag reorder hide show clock time 12 24 hour am pm" ui={ui}>
         <p class="lede">Cards stack in this order. Hiding one closes the gap it left.</p>
         {order.map((id) => (
           <div
@@ -617,10 +698,9 @@ export function Settings() {
           fills the screen. With the clock hidden the gear goes with it, so a settings button appears in
           the panel's top corner instead.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Picture</h2>
+      <Section title="Picture" keywords="image gif photo folder slideshow rotate height fit cover contain" ui={ui}>
         <p class="lede">A card for one image, or a folder cycled through. Switch it on under Panels.</p>
 
         <div class="row">
@@ -709,10 +789,9 @@ export function Settings() {
           here, so nothing else on the disk is reachable from the panel. A folder is read in name order
           and rotated; adding or removing a file is picked up when the source changes.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>System stats</h2>
+      <Section title="System stats" keywords="cpu gpu temperature memory ram vram disk uptime nvidia librehardwaremonitor load fan power limit" ui={ui}>
         <p class="lede">Shown on the System card. Anything switched off is never even read.</p>
         {(
           [
@@ -777,10 +856,9 @@ export function Settings() {
           switched on, under Options, Remote Web Server. The panel reads it over HTTP on every
           refresh, so starting or closing it shows up within five seconds.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Wallpaper Engine</h2>
+      <Section title="Wallpaper Engine" keywords="glass frosted clear solid transparency always on top wallpaper" ui={ui}>
         <div class="row">
           <span>Glass</span>
           <div class="segmented">
@@ -810,10 +888,9 @@ export function Settings() {
           Never a true fullscreen window: Wallpaper Engine pauses under one. Changing glass mode
           rebuilds the window, so the panel blinks.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Theme</h2>
+      <Section title="Theme" keywords="colour color preset font text size opacity shadow spacing gap tint" ui={ui}>
         <div class="preset-row">
           {THEME_PRESETS.map((preset) => (
             <button
@@ -917,10 +994,9 @@ export function Settings() {
             Shadow behind text
           </label>
         </div>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Alerts</h2>
+      <Section title="Alerts" keywords="sources notifications layout tiles rows launch open discord gmail proton bluesky" ui={ui}>
         <div class="row">
           <span>Layout</span>
           <div class="segmented">
@@ -973,10 +1049,9 @@ export function Settings() {
           <code> spotify:</code>, <code>steam://</code> and the rest. Anything else is treated as a path to
           a program or file. Empty means the tile does nothing.
         </p>
-      </section>
+      </Section>
 
-      <section>
-        <h2>Tasks</h2>
+      <Section title="Tasks" keywords="microsoft to do google tasks list client id entra todo" ui={ui}>
         <div class="row">
           <span>Store tasks in</span>
           <select
@@ -1116,10 +1191,9 @@ export function Settings() {
             </p>
           </>
         )}
-      </section>
+      </Section>
 
-      <section>
-        <h2>Behaviour</h2>
+      <Section title="Behaviour" keywords="startup autostart start with windows taskbar hide dim overnight quit close" ui={ui}>
         <div class="row">
           <label class="toggle">
             <input
@@ -1163,7 +1237,7 @@ export function Settings() {
           </span>
         </div>
         <p class="hint">Nexus Link wants this display too. Turn its screen feature off if they fight.</p>
-      </section>
+      </Section>
 
       <section>
         <div class="row">

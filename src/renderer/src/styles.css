@@ -388,7 +388,7 @@ button {
 /* Icon tiles, three across. The silhouettes carry it, so no labels. */
 .alert-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.7rem;
 }
 
@@ -973,4 +973,55 @@ button {
 
 .picture-img.contain {
   object-fit: contain;
+}
+
+/* ---------- settings: search and collapse ---------- */
+
+.settings-tools {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  margin-bottom: 0.5rem;
+  background: var(--bg);
+}
+
+.settings input[type='search'] {
+  flex: 1;
+  background: var(--panel-raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.7rem 0;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.section-caret {
+  color: var(--faint);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.section-body {
+  padding-bottom: 0.5rem;
+}
+
+.settings .no-matches {
+  color: var(--muted);
+  padding: 1.5rem 0;
 }
