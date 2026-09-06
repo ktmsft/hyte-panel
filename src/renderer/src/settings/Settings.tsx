@@ -456,11 +456,11 @@ export function Settings() {
         <p class="lede">Shown on the System card. Anything switched off is never even read.</p>
         {(
           [
-            ['cpuLoad', 'CPU load', 'Free, straight from the OS.'],
             ['cpuTemp', 'CPU temperature', 'Needs LibreHardwareMonitor running as administrator.'],
-            ['memory', 'Memory', 'Free, straight from the OS.'],
+            ['cpuLoad', 'CPU load', 'Free, straight from the OS.'],
             ['gpuTemp', 'GPU temperature', 'NVIDIA only, through nvidia-smi.'],
             ['gpuLoad', 'GPU load', 'NVIDIA only.'],
+            ['memory', 'Memory', 'Free, straight from the OS.'],
             ['gpuVram', 'VRAM used', 'NVIDIA only.'],
             ['gpuPower', 'GPU power draw', 'NVIDIA only.'],
             ['gpuFan', 'GPU fan speed', 'NVIDIA only.'],
@@ -483,6 +483,11 @@ export function Settings() {
             <span class="todo-note">{note}</span>
           </div>
         ))}
+        <p class="hint">
+          The card is two columns filled in the order above, so heat and capacity land on the left and how
+          hard something is working lands on the right. Switching one off closes the gap rather than
+          leaving a hole.
+        </p>
         <p class="hint">
           Refreshed every 5 seconds. GPU figures come from <code>nvidia-smi</code>, which installs with the
           driver and needs no permissions. There is no supported way to read a modern CPU's temperature on

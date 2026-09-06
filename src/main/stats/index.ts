@@ -15,6 +15,33 @@ import {
 /** Which stats need the GPU read, so it is fetched once or not at all. */
 const GPU_STATS: StatId[] = ['gpuTemp', 'gpuLoad', 'gpuVram', 'gpuPower', 'gpuFan']
 
+/**
+ * The card is a two-column grid filled row by row, so this order is the layout.
+ * Read it in pairs: each line is a row, the left column is heat and capacity,
+ * the right is how hard the thing is working.
+ *
+ *   CPU temp     CPU load
+ *   GPU temp     GPU load
+ *   Memory       VRAM
+ *   GPU power    GPU fan
+ *   Disk         Uptime
+ *
+ * Switching one off closes the gap rather than leaving a hole, so the pairing
+ * holds for any run of adjacent choices and degrades tidily for the rest.
+ */
+const ORDER: StatId[] = [
+  'cpuTemp',
+  'cpuLoad',
+  'gpuTemp',
+  'gpuLoad',
+  'memory',
+  'gpuVram',
+  'gpuPower',
+  'gpuFan',
+  'disk',
+  'uptime'
+]
+
 /** Checked once: without LibreHardwareMonitor there is no point spawning WMI. */
 let monitorPresent: boolean | null = null
 
@@ -121,6 +148,7 @@ export async function collectStats(): Promise<StatReading[]> {
   const needsGpu = GPU_STATS.some((id) => wanted.has(id))
   const gpu = needsGpu ? await nvidiaGpu() : null
 
+  const found = new Map<StatId, StatReading>()
   const out: StatReading[] = []
 
   if (wanted.has('cpuLoad')) {
@@ -180,7 +208,8 @@ export async function collectStats(): Promise<StatReading[]> {
 
   if (wanted.has('uptime')) out.push(uptimeStat(uptimeSeconds()))
 
-  return out
+  for (const reading of out) found.set(reading.id, reading)
+  return ORDER.filter((id) => found.has(id)).map((id) => found.get(id) as StatReading)
 }
 
 export { cpuName }

@@ -26,7 +26,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     memory: true,
     gpuTemp: true,
     gpuLoad: true,
-    gpuVram: false,
+    gpuVram: true,
     gpuPower: false,
     gpuFan: false,
     disk: false,
