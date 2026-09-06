@@ -26,13 +26,13 @@
       "output": "release"
     },
     "files": [
-      "out/**/*",
-      "resources/**/*"
+      "out/**/*"
     ],
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     }
   },
   "dependencies": {

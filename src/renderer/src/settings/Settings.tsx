@@ -60,6 +60,8 @@ const GLASS_NOTES: Record<GlassMode, string> = {
   solid: 'Paints its own background and ignores the wallpaper.'
 }
 
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
+
 const SECTION_KEYWORDS: Record<string, string> = {
   'Display': 'monitor screen resolution which display panel detection primary',
   'Calendars': 'ical ics google feed agenda events secret address basic.ics days ahead',
@@ -1230,12 +1232,58 @@ export function Settings() {
             />
             Dim overnight
           </label>
-          <span class="spacer" />
-          <span class="value">
-            {String(config.dim.startHour).padStart(2, '0')}:00 to{' '}
-            {String(config.dim.endHour).padStart(2, '0')}:00
-          </span>
         </div>
+        {config.dim.enabled && (
+          <>
+            <div class="row">
+              <label>From</label>
+              <select
+                value={String(config.dim.startHour)}
+                onChange={(event) =>
+                  void patch({ dim: { ...config.dim, startHour: Number(event.currentTarget.value) } })
+                }
+              >
+                {HOURS.map((hour) => (
+                  <option key={hour} value={String(hour)}>
+                    {String(hour).padStart(2, '0')}:00
+                  </option>
+                ))}
+              </select>
+              <label>to</label>
+              <select
+                value={String(config.dim.endHour)}
+                onChange={(event) =>
+                  void patch({ dim: { ...config.dim, endHour: Number(event.currentTarget.value) } })
+                }
+              >
+                {HOURS.map((hour) => (
+                  <option key={hour} value={String(hour)}>
+                    {String(hour).padStart(2, '0')}:00
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div class="row">
+              <label>Brightness</label>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                step="5"
+                value={String(Math.round(config.dim.level * 100))}
+                onInput={(event) =>
+                  void patch({
+                    dim: { ...config.dim, level: Number(event.currentTarget.value) / 100 }
+                  })
+                }
+              />
+              <span class="value">{Math.round(config.dim.level * 100)}%</span>
+            </div>
+            <p class="hint">
+              The page is dimmed, not the backlight, so the screen never has to wake up again.
+            </p>
+          </>
+        )}
         <p class="hint">Nexus Link wants this display too. Turn its screen feature off if they fight.</p>
       </Section>
 

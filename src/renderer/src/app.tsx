@@ -62,10 +62,41 @@ function useConfig(): AppConfig | null {
   return config
 }
 
+/** The window may wrap past midnight, so 23 to 7 is a range and not a mistake. */
+function inDimWindow(hour: number, start: number, end: number): boolean {
+  if (start === end) return false
+  return start < end ? hour >= start && hour < end : hour >= start || hour < end
+}
+
+/**
+ * Dims the page rather than the backlight, so the screen never has to wake up
+ * again and a glance still reads.
+ */
+function useDimming(config: AppConfig | null): void {
+  useEffect(() => {
+    if (isSettingsWindow || !config) return undefined
+
+    const { enabled, startHour, endHour, level } = config.dim
+    const apply = (): void => {
+      const on = enabled && inDimWindow(new Date().getHours(), startHour, endHour)
+      document.body.style.filter = on ? `brightness(${level})` : ''
+    }
+
+    apply()
+    // The hour only ever turns over on the minute.
+    const timer = setInterval(apply, 60_000)
+    return () => {
+      clearInterval(timer)
+      document.body.style.filter = ''
+    }
+  }, [config])
+}
+
 export function App() {
   const state = usePanelState()
   const config = useConfig()
   const pictures = usePictures(config)
+  useDimming(config)
 
   useEffect(() => {
     document.body.classList.toggle('panel', !isSettingsWindow)

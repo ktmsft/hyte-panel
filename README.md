@@ -14,7 +14,7 @@ The case screen is an ordinary DisplayPort monitor mounted portrait at 682x2560,
 | 4 | Tasks | Done |
 | 5 | Discord | Done |
 | 6 | Packaging | Done |
-| 7 | Overnight dimming | Planned |
+| 7 | Overnight dimming | Done |
 
 No Google sign-in, no Cloud project, no OAuth client. See [below](#why-not-the-google-api).
 
@@ -200,6 +200,8 @@ Frosted needs `transparent: false`. CSS `backdrop-filter` can't blur the desktop
 
 The panel is never truly fullscreen, because Wallpaper Engine pauses the wallpaper under one.
 
+**Dim overnight** (Settings, Behaviour) fades the page between two hours, 23:00 to 07:00 by default. It dims the page rather than the backlight, so the screen never has to wake up and a glance still reads. The window may wrap past midnight.
+
 Colours are CSS custom properties written from config, so edits repaint live. Moving the glass tint across the light/dark line takes the ink with it.
 
 ## Why not the Google API
@@ -241,6 +243,11 @@ Two runtime dependencies: `preact`, and `ical.js` for feed parsing. IMAP is hand
 **The panel is the wrong size.** Changing any display's scale factor makes Windows rescale this window too. It re-fits itself, but a restart settles it.
 
 **Nexus Link fights for the display.** Turn its screen feature off.
+
+**The installed app exits immediately when launched from a terminal.** VS Code
+terminals export `ELECTRON_RUN_AS_NODE=1`, which makes the exe boot as plain
+Node and quit. It only affects launches from that shell — Explorer and startup
+are fine. `Remove-Item Env:\ELECTRON_RUN_AS_NODE` first if you need to.
 
 ## Licence
 
