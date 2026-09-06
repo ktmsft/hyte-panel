@@ -335,6 +335,16 @@ function openSettingsWindow(): void {
   loadRoute(settingsWindow, 'settings')
 }
 
+/**
+ * Only a packaged build can register itself. In dev the executable is Electron
+ * itself, so Windows would get a Run entry launching a bare Electron with no app
+ * to load, which is what it did: a restart brought up nothing.
+ */
+function applyAutostart(enabled: boolean): void {
+  if (!app.isPackaged) return
+  app.setLoginItemSettings({ openAtLogin: enabled })
+}
+
 function broadcast(channel: string, payload: unknown): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) window.webContents.send(channel, payload)
@@ -342,7 +352,7 @@ function broadcast(channel: string, payload: unknown): void {
 }
 
 function applyConfig(previous: AppConfig, next: AppConfig): void {
-  app.setLoginItemSettings({ openAtLogin: next.autostart })
+  applyAutostart(next.autostart)
 
   // Data first: a glass change rebuilds the window and returns early below.
   if (JSON.stringify(previous.sources) !== JSON.stringify(next.sources)) {
@@ -578,7 +588,7 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     app.setAppUserModelId('dev.bitofcode.hytepanel')
-    app.setLoginItemSettings({ openAtLogin: getConfig().autostart })
+    applyAutostart(getConfig().autostart)
     // The single mailbox became named ones; move the old password across.
     migrateSecrets()
 

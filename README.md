@@ -13,7 +13,8 @@ The case screen is an ordinary DisplayPort monitor mounted portrait at 682x2560,
 | 3 | Bluesky, Proton | Done |
 | 4 | Tasks | Done |
 | 5 | Discord | Done |
-| 6 | Packaging, overnight dimming | Planned |
+| 6 | Packaging | Done |
+| 7 | Overnight dimming | Planned |
 
 No Google sign-in, no Cloud project, no OAuth client. See [below](#why-not-the-google-api).
 
@@ -32,6 +33,22 @@ npm run check:badge    # read Discord's taskbar badge once
 ```
 
 Settings open on the primary monitor, since the panel has no keyboard.
+
+## Installing
+
+```sh
+npm run dist     # release/Hyte Panel Setup <version>.exe
+```
+
+Run the installer. It's per-user, so no admin prompt, and lands in
+`%LOCALAPPDATA%\Programs\hyte-panel`.
+
+Starting with Windows is on by default — Settings, Behaviour. Only a packaged
+build registers itself; `npm run dev` deliberately leaves the setting alone,
+since in dev the executable is Electron rather than the app.
+
+The installed app and `npm run dev` share one config and credential vault, so
+settings carry across.
 
 VS Code terminals export `ELECTRON_RUN_AS_NODE=1`, which makes Electron boot as plain Node. `scripts/electron-vite.mjs` strips it.
 

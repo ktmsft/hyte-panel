@@ -6,10 +6,3 @@ release/
 .env
 .env.local
 .DS_Store
-
-# Helper build output (phase 5)
-helper/**/bin/
-helper/**/obj/
-helper/sparse/*.msix
-helper/sparse/*.pfx
-helper/sparse/*.cer
