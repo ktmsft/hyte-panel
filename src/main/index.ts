@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, screen, shell } from 'electron'
+import type { Display, Rectangle, WebContents } from 'electron'
 import { join } from 'node:path'
 import type { AppConfig, MailAccountId, PictureSource, SourceId } from '@shared/types'
 import { IPC } from '@shared/ipc'
@@ -53,12 +54,59 @@ function loadRoute(window: BrowserWindow, route: 'panel' | 'settings'): void {
   }
 }
 
+/**
+ * The bounds that make the panel exactly cover its display.
+ *
+ * A fresh window gets this right on its own. The reason it is a function is
+ * what happens later: when the scale factor of *any* display changes, Windows
+ * rescales this window too, even though it sits on a display whose own scaling
+ * never moved. A 125% change on the primary grew the panel from 682x2560 to
+ * 853x3200, a quarter larger than the screen, so the lower widgets fell off the
+ * bottom and it read as though the page had zoomed.
+ *
+ * Electron keeps reporting the bounds that were asked for rather than the ones
+ * Windows produced, so the drift cannot be detected by comparing them. The
+ * bounds are simply re-applied instead.
+ */
+function panelBounds(display: Display): Rectangle {
+  return { ...display.bounds }
+}
+
+/**
+ * Zoom is pinned shut on both windows.
+ *
+ * The panel has no keyboard and no browser chrome, so a page that zooms has no
+ * way back: the widgets crop and nothing on screen undoes it. Chromium also
+ * remembers a zoom level per origin, so one stray Ctrl+wheel survives restarts.
+ *
+ * Pinch is already blocked by touch-action in the stylesheet. This covers the
+ * other two ways in, page zoom and the visual viewport, and puts the level back
+ * if one gets through anyway.
+ */
+function lockZoom(contents: WebContents): void {
+  const pin = (): void => {
+    contents.setZoomFactor(1)
+    contents.setZoomLevel(0)
+    // Page zoom and pinch zoom are separate; the calls above miss the latter.
+    void contents.setVisualZoomLevelLimits(1, 1)
+  }
+
+  pin()
+  contents.on('did-finish-load', pin)
+  // Only fires for a zoom the user asked for, so this cannot loop on itself.
+  contents.on('zoom-changed', pin)
+  contents.on('before-input-event', (event, input) => {
+    if (!input.control && !input.meta) return
+    if (['+', '-', '=', '0'].includes(input.key)) event.preventDefault()
+  })
+}
+
 function createPanelWindow(): void {
   const config = getConfig()
   const { display, detected } = findPanelDisplay(config)
   activeDisplayId = display.id
 
-  const { x, y, width, height } = display.bounds
+  const { x, y, width, height } = panelBounds(display)
   const mode = WINDOWED ? 'solid' : config.glassMode
 
   panelWindow = new BrowserWindow({
@@ -88,18 +136,19 @@ function createPanelWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      zoomFactor: 1
     }
   })
 
   const thisWindow = panelWindow
+  lockZoom(thisWindow.webContents)
   thisWindow.once('ready-to-show', () => {
     thisWindow.show()
     if (!WINDOWED) {
-      // Windows clamps a new window to the work area, which left a strip along
-      // the bottom where the taskbar used to be. Re-applying the display's own
-      // bounds takes the whole screen.
-      thisWindow.setBounds(display.bounds)
+      // Windows clamps a new window to the work area, leaving a strip along the
+      // bottom where the taskbar sits. refitPanel re-applies until it sticks.
+      refitPanel()
       assertPanelOnTop()
     }
   })
@@ -109,6 +158,9 @@ function createPanelWindow(): void {
   thisWindow.webContents.on('console-message', (_event, level, message) => {
     if (level >= 2) console.error('[panel renderer]', message)
   })
+  // Windows rescales this window when another display's scaling changes, and
+  // this is the first sign of it.
+  thisWindow.on('resize', () => refitPanel())
   thisWindow.on('closed', () => {
     // Guard against a rebuild's old window nulling out its replacement.
     if (panelWindow === thisWindow) {
@@ -148,6 +200,44 @@ function refreshKey(config: AppConfig): string {
 }
 
 /** Re-claims the panel display. Cheap, in-process, and does not steal focus. */
+/**
+ * Puts the panel back over its display. Cheap enough to call whenever the
+ * desktop changes shape, and a no-op when it is already right.
+ */
+let refitting = false
+
+function refitPanel(): void {
+  // The guard is what stops this trading resizes with Windows: setting bounds
+  // raises `resize`, which is one of the things that calls this.
+  if (WINDOWED || refitting || !panelWindow || panelWindow.isDestroyed()) return
+  const { display, detected } = findPanelDisplay(getConfig())
+  if (!detected) return
+
+  refitting = true
+  const want = panelBounds(display)
+  // Set unconditionally. Electron's own bounds still read as the requested
+  // size after Windows has rescaled the window, so there is nothing to compare
+  // against; re-applying the same numbers is what puts the window back.
+  panelWindow.setBounds(want)
+
+  // Windows clamps to the work area, and the panel's own taskbar keeps its
+  // strip reserved even while hidden, which costs the bottom 48px. A second
+  // application is not clamped and takes the whole screen.
+  const got = panelWindow.getBounds()
+  if (got.width !== want.width || got.height !== want.height) {
+    panelWindow.setBounds(want)
+    const settled = panelWindow.getBounds()
+    if (settled.width !== want.width || settled.height !== want.height) {
+      console.warn(
+        `[display] panel is ${settled.width}x${settled.height}, wanted ${want.width}x${want.height}`
+      )
+    }
+  }
+  setTimeout(() => {
+    refitting = false
+  }, 250).unref()
+}
+
 function assertPanelOnTop(): void {
   if (WINDOWED || !panelWindow || panelWindow.isDestroyed()) return
   if (!getConfig().alwaysOnTop) return
@@ -201,7 +291,7 @@ function movePanelToDisplay(displayId: number): void {
     return
   }
 
-  panelWindow.setBounds(display.bounds)
+  panelWindow.setBounds(panelBounds(display))
   panelWindow.setAlwaysOnTop(getConfig().alwaysOnTop, PANEL_Z_LEVEL)
   syncPanelTaskbar()
 }
@@ -231,10 +321,12 @@ function openSettingsWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      zoomFactor: 1
     }
   })
 
+  lockZoom(settingsWindow.webContents)
   settingsWindow.once('ready-to-show', () => settingsWindow?.show())
   settingsWindow.on('closed', () => {
     settingsWindow = null
@@ -527,7 +619,10 @@ if (!app.requestSingleInstanceLock()) {
       syncPanelTaskbar()
     })
 
+    // A scale change on any display resizes this one, so the fit is re-applied
+    // rather than only the z-order.
     screen.on('display-metrics-changed', () => {
+      refitPanel()
       syncPanelTaskbar()
       assertPanelOnTop()
     })
@@ -536,7 +631,7 @@ if (!app.requestSingleInstanceLock()) {
       if (removed.id !== activeDisplayId || !panelWindow) return
       const primary = screen.getPrimaryDisplay()
       panelWindow.setAlwaysOnTop(false)
-      panelWindow.setBounds(primary.bounds)
+      panelWindow.setBounds(panelBounds(primary))
       activeDisplayId = primary.id
     })
 
