@@ -3,13 +3,14 @@ import type { JSX } from 'preact'
 import type { AppConfig, PanelId, PanelState } from '@shared/types'
 import { applyScale, applyTheme } from './lib/theme'
 import { Clock } from './widgets/Clock'
+import { Stats } from './widgets/Stats'
 import { Agenda } from './widgets/Agenda'
 import { Todos } from './widgets/Todos'
 import { Alerts } from './widgets/Alerts'
 import { Settings } from './settings/Settings'
 
 /** Top to bottom, as stacked on the portrait panel. */
-const PANEL_ORDER: PanelId[] = ['clock', 'agenda', 'todos', 'alerts']
+const PANEL_ORDER: PanelId[] = ['clock', 'stats', 'agenda', 'todos', 'alerts']
 
 /**
  * Whichever of these is visible first takes the leftover height. The rows are
@@ -71,6 +72,7 @@ export function App() {
 
   const cards: Record<PanelId, JSX.Element> = {
     clock: <Clock key="clock" mock={state.mock} onOpenSettings={openSettings} />,
+    stats: <Stats key="stats" stats={state.stats} />,
     agenda: (
       <Agenda
         key="agenda"

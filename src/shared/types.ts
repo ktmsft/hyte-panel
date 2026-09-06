@@ -55,6 +55,8 @@ export interface PanelState {
    * just incomplete, which is not what `stale` means.
    */
   eventsNote: string | null
+  /** Only the stats switched on, in the order the card shows them. */
+  stats: StatReading[]
   tasks: Task[]
   taskProvider: TaskProviderId
   tasksHealth: Health
@@ -166,7 +168,35 @@ export interface FeedsStatus {
 }
 
 /** The cards on the panel, in the order they are stacked. */
-export type PanelId = 'clock' | 'agenda' | 'todos' | 'alerts'
+export type PanelId = 'clock' | 'stats' | 'agenda' | 'todos' | 'alerts'
+
+/**
+ * One number on the System card. GPU figures come from nvidia-smi, which ships
+ * with the driver; `cpuTemp` needs LibreHardwareMonitor, because Windows offers
+ * no supported way to read a modern CPU's temperature.
+ */
+export type StatId =
+  | 'cpuLoad'
+  | 'cpuTemp'
+  | 'memory'
+  | 'gpuTemp'
+  | 'gpuLoad'
+  | 'gpuVram'
+  | 'gpuPower'
+  | 'gpuFan'
+  | 'disk'
+  | 'uptime'
+
+export interface StatReading {
+  id: StatId
+  label: string
+  /** Ready to print. Null when this machine cannot answer it. */
+  value: string | null
+  /** 0 to 1 where the stat has a natural full scale, so a bar can be drawn. */
+  fraction: number | null
+  /** Why the value is missing, shown in its place. */
+  note?: string
+}
 
 export interface MicrosoftConfig {
   /** Application (client) ID from the Entra app registration. Not a secret. */
@@ -204,6 +234,8 @@ export interface AppConfig {
   alertsLayout: AlertsLayout
   /** Which cards are on screen. Hiding them all is allowed. */
   panels: Record<PanelId, boolean>
+  /** Which numbers the System card shows. */
+  stats: Record<StatId, boolean>
   theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
   feeds: FeedsConfig

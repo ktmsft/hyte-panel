@@ -799,3 +799,67 @@ button {
 .settings-escape:active {
   color: var(--text);
 }
+
+/* ---------- system stats ---------- */
+
+.stat {
+  margin-bottom: 0.9rem;
+}
+
+.stat:last-child {
+  margin-bottom: 0;
+}
+
+.stat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stat-label {
+  color: var(--muted);
+}
+
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.stat-value.missing {
+  font-weight: 400;
+  color: var(--faint);
+  font-size: 0.9em;
+}
+
+.stat-bar {
+  margin-top: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--panel-raised);
+  overflow: hidden;
+}
+
+.stat-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  /* Values arrive every few seconds, so ease between them. */
+  transition: width 0.6s ease, background-color 0.6s ease;
+}
+
+.stat-fill.warm {
+  background: var(--warn);
+}
+
+.stat-fill.hot {
+  background: var(--err);
+}
+
+.stat-note {
+  margin-top: 0.2rem;
+  color: var(--faint);
+  font-size: 0.82em;
+  line-height: 1.3;
+}

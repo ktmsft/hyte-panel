@@ -4,7 +4,8 @@ import { fetchEvents, FeedError } from './feeds/calendar'
 import { fetchMail } from './feeds/mail'
 import { calendarUrl, noteCalendar, noteMailError } from './feeds/store'
 import { ImapError } from './imap'
-import { getState, goLive, setEvents, setSource } from './state'
+import { collectStats } from './stats'
+import { getState, goLive, setEvents, setSource, setStats } from './state'
 import { refreshTasks } from './tasks'
 
 /**
@@ -15,10 +16,13 @@ import { refreshTasks } from './tasks'
 const CALENDAR_MS = 5 * 60_000
 const MAIL_MS = 2 * 60_000
 const TASKS_MS = 2 * 60_000
+/** Fast enough to look live, slow enough that nvidia-smi costs nothing. */
+const STATS_MS = 5_000
 
 let calendarTimer: NodeJS.Timeout | null = null
 let mailTimer: NodeJS.Timeout | null = null
 let tasksTimer: NodeJS.Timeout | null = null
+let statsTimer: NodeJS.Timeout | null = null
 
 /**
  * Data already on screen is dimmed rather than blanked on a first failure.
@@ -127,19 +131,32 @@ async function pollMail(): Promise<void> {
   }
 }
 
+async function pollStats(): Promise<void> {
+  // Nothing is read while the card is hidden, so no spawns happen either.
+  if (!getConfig().panels.stats) return
+  try {
+    setStats(await collectStats())
+  } catch (err) {
+    console.error('[stats]', err instanceof Error ? err.message : err)
+  }
+}
+
 export function refreshNow(): void {
   void pollCalendar()
   void pollMail()
   void refreshTasks()
+  void pollStats()
 }
 
 export function stopPolling(): void {
   if (calendarTimer) clearInterval(calendarTimer)
   if (mailTimer) clearInterval(mailTimer)
   if (tasksTimer) clearInterval(tasksTimer)
+  if (statsTimer) clearInterval(statsTimer)
   calendarTimer = null
   mailTimer = null
   tasksTimer = null
+  statsTimer = null
 }
 
 /** Safe to call repeatedly: it restarts the loops and refreshes straight away. */
@@ -148,5 +165,6 @@ export function startPolling(): void {
   calendarTimer = setInterval(() => void pollCalendar(), CALENDAR_MS)
   mailTimer = setInterval(() => void pollMail(), MAIL_MS)
   tasksTimer = setInterval(() => void refreshTasks(), TASKS_MS)
+  statsTimer = setInterval(() => void pollStats(), STATS_MS)
   refreshNow()
 }

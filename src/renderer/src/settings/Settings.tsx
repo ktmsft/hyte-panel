@@ -8,6 +8,7 @@ import type {
   MailDetail,
   MicrosoftStatus,
   PanelId,
+  StatId,
   SourceId,
   TaskProviderId,
   ThemeConfig
@@ -424,6 +425,7 @@ export function Settings() {
         {(
           [
             ['clock', 'Clock'],
+            ['stats', 'System stats'],
             ['agenda', 'Agenda'],
             ['todos', 'To-dos'],
             ['alerts', 'Alerts']
@@ -446,6 +448,46 @@ export function Settings() {
           Whichever of To-dos, Agenda or Alerts is showing takes the leftover height, so the stack always
           fills the screen. With the clock hidden the gear goes with it, so a settings button appears in
           the panel's top corner instead.
+        </p>
+      </section>
+
+      <section>
+        <h2>System stats</h2>
+        <p class="lede">Shown on the System card. Anything switched off is never even read.</p>
+        {(
+          [
+            ['cpuLoad', 'CPU load', 'Free, straight from the OS.'],
+            ['cpuTemp', 'CPU temperature', 'Needs LibreHardwareMonitor running as administrator.'],
+            ['memory', 'Memory', 'Free, straight from the OS.'],
+            ['gpuTemp', 'GPU temperature', 'NVIDIA only, through nvidia-smi.'],
+            ['gpuLoad', 'GPU load', 'NVIDIA only.'],
+            ['gpuVram', 'VRAM used', 'NVIDIA only.'],
+            ['gpuPower', 'GPU power draw', 'NVIDIA only.'],
+            ['gpuFan', 'GPU fan speed', 'NVIDIA only.'],
+            ['disk', 'Disk used', 'The Windows drive.'],
+            ['uptime', 'Uptime', 'Free, straight from the OS.']
+          ] as [StatId, string, string][]
+        ).map(([id, label, note]) => (
+          <div class="row" key={id}>
+            <label class="toggle">
+              <input
+                type="checkbox"
+                checked={config.stats[id]}
+                onChange={(event) =>
+                  void patch({ stats: { ...config.stats, [id]: event.currentTarget.checked } })
+                }
+              />
+              {label}
+            </label>
+            <span class="spacer" />
+            <span class="todo-note">{note}</span>
+          </div>
+        ))}
+        <p class="hint">
+          Refreshed every 5 seconds. GPU figures come from <code>nvidia-smi</code>, which installs with the
+          driver and needs no permissions. There is no supported way to read a modern CPU's temperature on
+          Windows, so that one needs LibreHardwareMonitor: install it, run it as administrator, and the
+          reading appears on its own.
         </p>
       </section>
 

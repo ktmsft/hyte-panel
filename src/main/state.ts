@@ -1,4 +1,12 @@
-import type { CalendarEvent, Health, PanelState, SourceId, SourceState, Task } from '@shared/types'
+import type {
+  CalendarEvent,
+  Health,
+  PanelState,
+  SourceId,
+  SourceState,
+  StatReading,
+  Task
+} from '@shared/types'
 import { getConfig } from './config'
 
 type Listener = (state: PanelState) => void
@@ -61,6 +69,7 @@ function buildMockState(): PanelState {
     ],
     eventsHealth: 'unconfigured',
     eventsNote: null,
+    stats: [],
     tasks,
     taskProvider: config.taskProvider,
     tasksHealth: 'unconfigured',
@@ -123,6 +132,10 @@ export function setTasks(tasks: Task[] | null, health: Health): PanelState {
 /** The card labels itself with the provider, so it has to follow settings. */
 export function syncTaskProvider(): PanelState {
   return updateState({ taskProvider: getConfig().taskProvider })
+}
+
+export function setStats(stats: StatReading[]): PanelState {
+  return updateState({ stats })
 }
 
 export function setSource(id: SourceId, patch: Partial<SourceState>): PanelState {

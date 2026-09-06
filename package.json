@@ -13,6 +13,7 @@
     "start": "node scripts/electron-vite.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "check:ics": "node scripts/ics-check.ts",
+    "check:stats": "node scripts/stats-check.ts",
     "package": "npm run build && electron-builder --win --dir",
     "dist": "npm run build && electron-builder --win"
   },

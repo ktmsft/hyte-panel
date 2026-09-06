@@ -237,6 +237,8 @@ function applyConfig(previous: AppConfig, next: AppConfig): void {
     if (refreshKey(previous) !== refreshKey(next)) refreshNow()
   }
   if (previous.hideTaskbar !== next.hideTaskbar) syncPanelTaskbar()
+  if (JSON.stringify(previous.stats) !== JSON.stringify(next.stats)) refreshNow()
+  if (previous.panels.stats !== next.panels.stats) refreshNow()
   if (previous.taskProvider !== next.taskProvider) {
     syncTaskProvider()
     void refreshTasks()

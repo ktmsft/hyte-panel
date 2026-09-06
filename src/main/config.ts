@@ -17,7 +17,21 @@ export const DEFAULT_CONFIG: AppConfig = {
   glassMode: 'clear',
   alwaysOnTop: true,
   alertsLayout: 'list',
-  panels: { clock: true, agenda: true, todos: true, alerts: true },
+  panels: { clock: true, stats: true, agenda: true, todos: true, alerts: true },
+  // The free ones plus what an NVIDIA card gives up without asking. The rest
+  // are off so the card stays short on a portrait panel.
+  stats: {
+    cpuLoad: true,
+    cpuTemp: true,
+    memory: true,
+    gpuTemp: true,
+    gpuLoad: true,
+    gpuVram: false,
+    gpuPower: false,
+    gpuFan: false,
+    disk: false,
+    uptime: false
+  },
   theme: DEFAULT_THEME,
   sources: {
     gmail: { enabled: true },

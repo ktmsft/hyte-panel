@@ -22,9 +22,38 @@ badge clears the moment real data lands, and the seeded examples never come back
 There is no Google sign-in, no Cloud project and no OAuth client. That is
 deliberate, and the reason is [below](#why-not-the-google-api).
 
+## System stats
+
+Settings, System stats. Each number has its own checkbox, and anything switched
+off is never read, so the cost matches what is on screen.
+
+| Stat | Source | Cost |
+| --- | --- | --- |
+| CPU load, memory, uptime | Node's `os` | free |
+| Disk | `fs.statfs` | free |
+| GPU temp, load, VRAM, power, fan | `nvidia-smi` | one small spawn per refresh |
+| CPU temperature | LibreHardwareMonitor over WMI | a spawn, and only if it is installed |
+
+Refreshed every 5 seconds. `nvidia-smi` installs with the NVIDIA driver, sits on
+`PATH`, and needs no permissions, which makes the GPU the one piece of real
+hardware telemetry available for nothing.
+
+**CPU temperature is the awkward one.** Windows has no supported way to read it
+on a modern desktop CPU: it lives in registers that need a kernel driver.
+`MSAcpi_ThermalZoneTemperature` answers "Not supported" on this class of machine,
+and where it does answer it reports a chipset zone rather than the CPU, so it is
+not used. Install LibreHardwareMonitor and leave it running as administrator and
+the reading appears on its own; without it the card says so rather than showing a
+number it made up.
+
+HYTE Nexus knows the CPU temperature, since displaying it is the point of the
+Y70's screen, and its local service does answer on `127.0.0.1`. It returns 401 to
+everything, though, so reading it would mean reverse engineering a private,
+undocumented API that any Nexus update could change. Not worth building on.
+
 ## Panels
 
-Settings, Panels. Clock, Agenda, To-dos and Alerts can each be switched off. Rows
+Settings, Panels. Clock, System, Agenda, To-dos and Alerts can each be switched off. Rows
 are built from the visible set rather than being fixed, so a hidden card leaves no
 gap, and whichever of To-dos, Agenda or Alerts is still showing takes the leftover
 height so the stack fills the screen.
@@ -47,6 +76,7 @@ npm run dev            # borderless on the case panel
 npm run dev:windowed   # small window for layout work
 npm run build
 npm run check:ics      # parser checks: recurrence, timezones, all-day
+npm run check:stats    # read every stat source once, against this machine
 ```
 
 Settings open on the primary monitor, since the panel has no keyboard.
@@ -201,6 +231,7 @@ src/main/imap.ts  Minimal IMAP client, reused by Proton in phase 3.
 src/main/taskbar.ts  Hides the panel display's taskbar. See above.
 src/main/oauth.ts    Loopback PKCE flow for a public client.
 src/main/tasks/    Microsoft To Do, and the local fallback.
+src/main/stats/    CPU, memory, disk and GPU readings.
 src/preload/   contextBridge.
 src/renderer/  Preact UI. Never sees a token.
 src/shared/    Types and IPC names.
