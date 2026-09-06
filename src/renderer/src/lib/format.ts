@@ -1,12 +1,20 @@
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+/**
+ * Built once each, since a DateTimeFormat is not cheap and these are called for
+ * every event on every repaint. hour12 is set explicitly rather than left to the
+ * locale, so the setting decides and the clock and the agenda always agree.
+ */
+const TIME_FORMATS = {
+  hour12: new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }),
+  hour24: new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+}
 const dateFormat = new Intl.DateTimeFormat(undefined, {
   weekday: 'long',
   day: 'numeric',
   month: 'long'
 })
 
-export function formatTime(iso: string): string {
-  return timeFormat.format(new Date(iso))
+export function formatTime(iso: string, hour12: boolean): string {
+  return (hour12 ? TIME_FORMATS.hour12 : TIME_FORMATS.hour24).format(new Date(iso))
 }
 
 export function formatDate(date: Date): string {

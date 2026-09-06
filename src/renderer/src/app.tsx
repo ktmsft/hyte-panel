@@ -71,7 +71,9 @@ export function App() {
   const openSettings = (): void => void window.hyte.openSettings()
 
   const cards: Record<PanelId, JSX.Element> = {
-    clock: <Clock key="clock" mock={state.mock} onOpenSettings={openSettings} />,
+    clock: (
+      <Clock key="clock" mock={state.mock} hour12={config.clockHour12} onOpenSettings={openSettings} />
+    ),
     stats: <Stats key="stats" stats={state.stats} />,
     agenda: (
       <Agenda
@@ -79,6 +81,7 @@ export function App() {
         events={state.events}
         health={state.eventsHealth}
         note={state.eventsNote}
+        hour12={config.clockHour12}
       />
     ),
     todos: <Todos key="todos" tasks={state.tasks} provider={state.taskProvider} />,

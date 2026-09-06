@@ -444,6 +444,29 @@ export function Settings() {
             </label>
           </div>
         ))}
+        <div class="row">
+          <span>Time</span>
+          <div class="segmented">
+            {(
+              [
+                [true, '12 hour'],
+                [false, '24 hour']
+              ] as [boolean, string][]
+            ).map(([hour12, label]) => (
+              <button
+                key={label}
+                class={config.clockHour12 === hour12 ? 'active' : ''}
+                onClick={() => void patch({ clockHour12: hour12 })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p class="hint">
+          Applies to the clock and to event times on the Agenda together, so the two cannot disagree.
+        </p>
+
         <p class="hint">
           Whichever of To-dos, Agenda or Alerts is showing takes the leftover height, so the stack always
           fills the screen. With the clock hidden the gear goes with it, so a settings button appears in

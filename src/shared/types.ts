@@ -245,6 +245,11 @@ export interface AppConfig {
   alertsLayout: AlertsLayout
   /** Which cards are on screen. Hiding them all is allowed. */
   panels: Record<PanelId, boolean>
+  /**
+   * 12-hour clock with AM/PM, rather than 24-hour. Applies to the clock and to
+   * event times together, so the two cannot disagree.
+   */
+  clockHour12: boolean
   /** Which numbers the System card shows. */
   stats: Record<StatId, boolean>
   /**

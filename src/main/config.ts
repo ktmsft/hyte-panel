@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   alwaysOnTop: true,
   alertsLayout: 'list',
   panels: { clock: true, stats: true, agenda: true, todos: true, alerts: true },
+  clockHour12: true,
   // The free ones plus what an NVIDIA card gives up without asking. The rest
   // are off so the card stays short on a portrait panel.
   stats: {

@@ -6,6 +6,7 @@ interface Props {
   events: CalendarEvent[]
   health: Health
   note: string | null
+  hour12: boolean
 }
 
 const MAX_EVENTS = 8
@@ -18,7 +19,7 @@ const HEALTH_CHIP: Partial<Record<Health, string>> = {
   'setup-needed': 'Needs setup'
 }
 
-export function Agenda({ events, health, note }: Props) {
+export function Agenda({ events, health, note, hour12 }: Props) {
   const now = useNow(30_000)
   const nowMs = now.getTime()
 
@@ -53,8 +54,8 @@ export function Agenda({ events, health, note }: Props) {
                     'All day'
                   ) : (
                     <>
-                      {formatTime(event.start)}
-                      <span class="end">{formatTime(event.end)}</span>
+                      {formatTime(event.start, hour12)}
+                      <span class="end">{formatTime(event.end, hour12)}</span>
                     </>
                   )}
                 </div>
