@@ -4,6 +4,7 @@ import { fetchEvents, FeedError } from './feeds/calendar'
 import { fetchMail } from './feeds/mail'
 import { calendarUrl, noteCalendar, noteMailError } from './feeds/store'
 import { ImapError } from './imap'
+import { readNotifications } from './sources/notifications'
 import { collectStats } from './stats'
 import { getState, goLive, setEvents, setSource, setStats } from './state'
 import { refreshTasks } from './tasks'
@@ -18,11 +19,14 @@ const MAIL_MS = 2 * 60_000
 const TASKS_MS = 2 * 60_000
 /** Fast enough to look live, slow enough that nvidia-smi costs nothing. */
 const STATS_MS = 5_000
+/** Toasts arrive when they arrive; a SQL query this cheap can look often. */
+const DISCORD_MS = 20_000
 
 let calendarTimer: NodeJS.Timeout | null = null
 let mailTimer: NodeJS.Timeout | null = null
 let tasksTimer: NodeJS.Timeout | null = null
 let statsTimer: NodeJS.Timeout | null = null
+let discordTimer: NodeJS.Timeout | null = null
 
 /**
  * Data already on screen is dimmed rather than blanked on a first failure.
@@ -131,6 +135,44 @@ async function pollMail(): Promise<void> {
   }
 }
 
+/** Discord, its PTB and Canary builds all register under names containing it. */
+const DISCORD_APPS = /discord/i
+
+/** How many toasts the Alerts card can list. */
+const DISCORD_PREVIEW = 5
+
+function pollDiscord(): void {
+  if (!getConfig().sources.discord.enabled) return
+
+  const summary = readNotifications(DISCORD_APPS, DISCORD_PREVIEW)
+  if (summary === null) {
+    setSource('discord', {
+      health: 'error',
+      message: 'Could not read the Windows notification store.'
+    })
+    return
+  }
+  if (!summary.known) {
+    setSource('discord', {
+      health: 'unconfigured',
+      count: 0,
+      items: [],
+      checkedAt: null,
+      message: 'Discord has not posted a Windows notification yet.'
+    })
+    return
+  }
+
+  goLive()
+  setSource('discord', {
+    health: 'ok',
+    count: summary.count,
+    items: summary.items,
+    checkedAt: new Date().toISOString(),
+    message: undefined
+  })
+}
+
 async function pollStats(): Promise<void> {
   // Nothing is read while the card is hidden, so no spawns happen either.
   if (!getConfig().panels.stats) return
@@ -146,6 +188,7 @@ export function refreshNow(): void {
   void pollMail()
   void refreshTasks()
   void pollStats()
+  pollDiscord()
 }
 
 export function stopPolling(): void {
@@ -153,10 +196,12 @@ export function stopPolling(): void {
   if (mailTimer) clearInterval(mailTimer)
   if (tasksTimer) clearInterval(tasksTimer)
   if (statsTimer) clearInterval(statsTimer)
+  if (discordTimer) clearInterval(discordTimer)
   calendarTimer = null
   mailTimer = null
   tasksTimer = null
   statsTimer = null
+  discordTimer = null
 }
 
 /** Safe to call repeatedly: it restarts the loops and refreshes straight away. */
@@ -166,5 +211,6 @@ export function startPolling(): void {
   mailTimer = setInterval(() => void pollMail(), MAIL_MS)
   tasksTimer = setInterval(() => void refreshTasks(), TASKS_MS)
   statsTimer = setInterval(() => void pollStats(), STATS_MS)
+  discordTimer = setInterval(pollDiscord, DISCORD_MS)
   refreshNow()
 }

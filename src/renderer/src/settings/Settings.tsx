@@ -27,7 +27,7 @@ const SOURCE_LABELS: Record<SourceId, string> = {
 const NOT_YET_WIRED: Partial<Record<SourceId, string>> = {
   proton: 'Adapter lands in phase 3',
   bluesky: 'Adapter lands in phase 3',
-  discord: 'Needs the toast helper, phase 5'
+  discord: 'Counts Windows notifications waiting, not Discord’s own badge'
 }
 
 const COLOR_FIELDS = [

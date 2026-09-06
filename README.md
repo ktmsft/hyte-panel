@@ -16,7 +16,7 @@ badge clears the moment real data lands, and the seeded examples never come back
 | 2 | Calendar feeds, Gmail unread | Done |
 | 3 | Bluesky, Proton | Next |
 | 4 | Task backends, on-screen keyboard | Tasks done, keyboard planned |
-| 5 | Windows notification listener, Discord | Planned |
+| 5 | Windows notification listener, Discord | Done |
 | 6 | Packaging, overnight dimming | Planned |
 
 There is no Google sign-in, no Cloud project and no OAuth client. That is
@@ -91,6 +91,37 @@ HYTE Nexus knows the CPU temperature, since displaying it is the point of the
 Y70's screen, and its local service does answer on `127.0.0.1`. It returns 401 to
 everything, though, so reading it would mean reverse engineering a private,
 undocumented API that any Nexus update could change. Not worth building on.
+
+## Discord
+
+Nothing to set up. The Alerts card counts the Discord notifications currently
+waiting in Windows' Action Center, read straight from the notification store at
+`%LOCALAPPDATA%\Microsoft\Windows\Notifications\wpndatabase.db`.
+
+**This is not Discord's unread badge**, and cannot be. Discord's RPC transport
+gates message access behind the `rpc` OAuth scope, which Discord grants by
+whitelist only, and a taskbar badge is not readable by anything. What this counts
+is notifications waiting for attention: dismissing them clears it, and a message
+that arrives while Discord is focused never raises a toast at all. For something
+you glance at across a room, "waiting for you" is arguably the better number, but
+it is a different number and worth knowing that.
+
+The planned route was `UserNotificationListener`, which needs package identity,
+so a sparse MSIX, a trusted certificate and a WinRT helper, because Electron
+cannot call WinRT. It yields the same set of notifications. This reads the same
+data with a SQL query and no packaging at all.
+
+Two details make it work. The store is held open by the notification service, so
+it is opened read-only and immutable rather than copied on every poll. And
+payloads are stored as the decimal bytes of the toast XML, comma separated,
+rather than as XML, so they are reassembled before the text is read.
+
+`node:sqlite` runs the query, which Electron 44 has built in, so this adds no
+dependency. Arrival times are 100ns ticks since 1601 and exceed what a JavaScript
+number holds exactly, so they are read as BigInt.
+
+Matching takes any notification source whose name contains `discord`, so the PTB
+and Canary builds count too.
 
 ## Panels
 
@@ -234,10 +265,10 @@ land. Refreshed every 2 minutes.
 | Gmail | IMAP | App password, so 2-Step Verification on. Done, see above |
 | Proton | Bridge local IMAP | paid Proton plan, and STARTTLS in `imap.ts` |
 | Bluesky | `getUnreadCount` | app password |
-| Discord | Windows toast listener | sparse MSIX helper |
+| Discord | Windows notification store | nothing. Done, see above |
 
-Discord has no supported way to read your own unread count, so it arrives through
-`UserNotificationListener` instead.
+Discord has no supported way to read your own unread count. See below for what
+arrives instead.
 
 ## Taskbar
 
@@ -273,6 +304,7 @@ src/main/taskbar.ts  Hides the panel display's taskbar. See above.
 src/main/oauth.ts    Loopback PKCE flow for a public client.
 src/main/tasks/    Microsoft To Do, and the local fallback.
 src/main/stats/    CPU, memory, disk and GPU readings.
+src/main/sources/  Windows notification store, for Discord.
 src/preload/   contextBridge.
 src/renderer/  Preact UI. Never sees a token.
 src/shared/    Types and IPC names.
