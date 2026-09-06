@@ -2,6 +2,13 @@
 
 export type SourceId = 'gmail' | 'proton' | 'bluesky' | 'discord'
 
+/** The overlay an app puts on its taskbar icon. */
+export interface AppBadge {
+  count: number
+  /** False when the app has no taskbar button to carry a badge at all. */
+  pinned: boolean
+}
+
 /** `stale` is a real value whose last refresh failed, so the UI dims it. */
 export type Health = 'ok' | 'stale' | 'error' | 'unconfigured' | 'setup-needed'
 

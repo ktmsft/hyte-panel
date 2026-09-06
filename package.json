@@ -16,7 +16,8 @@
     "check:ics": "node scripts/ics-check.ts",
     "check:stats": "node scripts/stats-check.ts",
     "package": "npm run build && electron-builder --win --dir",
-    "dist": "npm run build && electron-builder --win"
+    "dist": "npm run build && electron-builder --win",
+    "check:badge": "node scripts/badge-check.ts"
   },
   "build": {
     "appId": "dev.bitofcode.hytepanel",
