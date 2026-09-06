@@ -55,6 +55,14 @@ body.panel {
   cursor: none;
 }
 
+/* The panel-wide rule turns selection off, which is right for a touch surface
+   and wrong for the one place text is typed. */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -308,6 +316,16 @@ button {
   border-radius: var(--radius);
   font-size: 1.5rem;
   font-weight: 600;
+}
+
+/* Closing the row is the quieter of the two actions, so it does not compete
+   with Add for the eye. */
+.task-input button.task-done-adding {
+  background: none;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font-weight: 500;
+  padding: 0 1rem;
 }
 
 /* ---------- alerts ---------- */

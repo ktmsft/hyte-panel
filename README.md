@@ -15,7 +15,7 @@ badge clears the moment real data lands, and the seeded examples never come back
 | 1 | Shell, display detection, layout, theming | Done |
 | 2 | Calendar feeds, Gmail unread | Done |
 | 3 | Bluesky, Proton | Next |
-| 4 | Task backends, on-screen keyboard | Tasks done, keyboard planned |
+| 4 | Task backends, task entry | Done |
 | 5 | Windows notification listener, Discord | Done |
 | 6 | Packaging, overnight dimming | Planned |
 
@@ -123,6 +123,20 @@ number holds exactly, so they are read as BigInt.
 Matching takes any notification source whose name contains `discord`, so the PTB
 and Canary builds count too.
 
+## Typing on the panel
+
+There is no on-screen keyboard, on purpose. Windows already has one, and the PC
+keyboard is nicer than poking at glass.
+
+Tapping **Add a task** asks the main process to focus the panel window before the
+field opens. That call is the whole point of this: the panel is held above other
+windows, and a window can be raised without being made active, so without it the
+field would take the caret while the keystrokes went to whatever was active on
+another screen.
+
+Enter adds and keeps the field open, since lists are usually written in a run.
+Escape closes it, as does **Done** for when the keyboard is out of reach.
+
 ## Panels
 
 Settings, Panels. Clock, System, Agenda, To-dos and Alerts can each be switched off. Rows
@@ -135,8 +149,6 @@ way back into settings. A settings button appears in the top corner instead.
 
 ## Backlog
 
-- **On-screen keyboard.** Adding a to-do on the panel needs one; there is no
-  keyboard on a case display.
 - **Google Tasks.** Offered in settings but not built. It would need the OAuth
   path the rest of the app was moved off, and the weekly expiry with it.
 

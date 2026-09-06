@@ -47,6 +47,7 @@ const api: HyteApi = {
   microsoftLists: () => ipcRenderer.invoke(IPC.microsoftLists),
   listDisplays: () => ipcRenderer.invoke(IPC.displaysList),
   setDisplay: (displayId: number) => ipcRenderer.invoke(IPC.panelSetDisplay, displayId),
+  focusPanel: () => ipcRenderer.invoke(IPC.panelFocus),
   openSettings: () => ipcRenderer.invoke(IPC.settingsOpen),
   closeSettings: () => ipcRenderer.invoke(IPC.settingsClose),
   addTask: (title: string) => ipcRenderer.invoke(IPC.taskAdd, title),

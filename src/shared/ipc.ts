@@ -19,6 +19,7 @@ export const IPC = {
   microsoftConnect: 'microsoft:connect',
   microsoftDisconnect: 'microsoft:disconnect',
   microsoftLists: 'microsoft:lists',
+  panelFocus: 'panel:focus',
   settingsOpen: 'settings:open',
   settingsClose: 'settings:close',
   taskAdd: 'task:add',

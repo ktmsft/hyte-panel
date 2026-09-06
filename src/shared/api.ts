@@ -29,6 +29,11 @@ export interface HyteApi {
   microsoftLists(): Promise<MicrosoftStatus>
   listDisplays(): Promise<DisplayInfo[]>
   setDisplay(displayId: number): Promise<DisplayInfo[]>
+  /**
+   * Hands the panel window keyboard focus, so what you type on the PC keyboard
+   * reaches it. An always-on-top window can be raised without being activated.
+   */
+  focusPanel(): Promise<void>
   openSettings(): Promise<void>
   closeSettings(): Promise<void>
   addTask(title: string): Promise<PanelState>

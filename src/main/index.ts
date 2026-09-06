@@ -398,6 +398,13 @@ function registerIpc(): void {
     broadcast(IPC.microsoftStatusChanged, status)
     return status
   })
+  ipcMain.handle(IPC.panelFocus, () => {
+    if (!panelWindow || panelWindow.isDestroyed()) return
+    // show() before focus(): a window kept above others is not necessarily the
+    // active one, and only the active window receives keystrokes.
+    panelWindow.show()
+    panelWindow.focus()
+  })
   ipcMain.handle(IPC.settingsOpen, () => {
     try {
       openSettingsWindow()

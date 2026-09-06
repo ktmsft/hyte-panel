@@ -21,10 +21,25 @@ export function Todos({ tasks, provider }: Props) {
   // Open first, completed pushed under.
   const ordered = [...open, ...done]
 
+  /** The panel is a touch screen with a keyboard on the far side of the desk. */
+  function startAdding(): void {
+    void window.hyte.focusPanel()
+    setAdding(true)
+  }
+
   async function submit(): Promise<void> {
-    const value = inputRef.current?.value ?? ''
-    if (value.trim()) await window.hyte.addTask(value)
-    setAdding(false)
+    const input = inputRef.current
+    const value = input?.value ?? ''
+    if (!value.trim()) {
+      setAdding(false)
+      return
+    }
+    await window.hyte.addTask(value)
+    // Stay open for the next one: lists are usually written in a run.
+    if (input) {
+      input.value = ''
+      input.focus()
+    }
   }
 
   return (
@@ -52,7 +67,6 @@ export function Todos({ tasks, provider }: Props) {
 
       {adding ? (
         <div class="task-input">
-          {/* Phase 4 swaps this for the on-screen keyboard. */}
           <input
             ref={inputRef}
             type="text"
@@ -64,9 +78,12 @@ export function Todos({ tasks, provider }: Props) {
             }}
           />
           <button onClick={() => void submit()}>Add</button>
+          <button class="task-done-adding" onClick={() => setAdding(false)}>
+            Done
+          </button>
         </div>
       ) : (
-        <button class="task-add" onClick={() => setAdding(true)}>
+        <button class="task-add" onClick={startAdding}>
           + Add a task
         </button>
       )}
