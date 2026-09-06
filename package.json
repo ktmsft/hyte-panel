@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node scripts/electron-vite.mjs dev",
     "dev:windowed": "cross-env HYTE_WINDOWED=1 node scripts/electron-vite.mjs dev",
+    "dev:taps": "cross-env VITE_HYTE_TAP_LOG=1 node scripts/electron-vite.mjs dev",
     "build": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && node scripts/electron-vite.mjs build",
     "start": "node scripts/electron-vite.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",

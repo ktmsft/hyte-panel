@@ -21,6 +21,9 @@ const FILL_PRIORITY: PanelId[] = ['todos', 'agenda', 'alerts', 'clock']
 /** Both windows load the same bundle. The hash decides which one this is. */
 const isSettingsWindow = window.location.hash === '#settings'
 
+/** Set HYTE_TAP_LOG=1 alongside the dev script to trace where touches land. */
+const tapLogging = import.meta.env.VITE_HYTE_TAP_LOG === '1'
+
 function usePanelState(): PanelState | null {
   const [state, setState] = useState<PanelState | null>(null)
   useEffect(() => {
@@ -45,6 +48,23 @@ export function App() {
 
   useEffect(() => {
     document.body.classList.toggle('panel', !isSettingsWindow)
+  }, [])
+
+  /**
+   * Taps that never arrive look exactly like taps whose handler did not fire,
+   * and telling those apart has cost hours. With HYTE_TAP_LOG=1 every touch
+   * prints where it landed, which answers it in one tap: wrong coordinates mean
+   * a mapping problem, silence means the touch never reached the window.
+   *
+   * Off by default, since it is one line per touch.
+   */
+  useEffect(() => {
+    if (isSettingsWindow || !tapLogging) return undefined
+    const seen = (event: PointerEvent): void => {
+      console.warn(`[tap] ${event.pointerType} at ${Math.round(event.clientX)},${Math.round(event.clientY)}`)
+    }
+    window.addEventListener('pointerdown', seen)
+    return () => window.removeEventListener('pointerdown', seen)
   }, [])
 
   useEffect(() => {

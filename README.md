@@ -201,6 +201,7 @@ npm run dev:windowed   # small window for layout work
 npm run build
 npm run check:ics      # parser checks: recurrence, timezones, all-day
 npm run check:stats    # read every stat source once, against this machine
+npm run dev:taps       # same as dev, but prints where every touch lands
 ```
 
 Settings open on the primary monitor, since the panel has no keyboard.
@@ -386,7 +387,12 @@ are left unmodified. IMAP is hand-rolled, because the parts needed here are smal
 
 Nexus Link also wants this display. Turn its screen feature off if the two fight.
 
-**If touch does nothing**, Windows has the digitizer mapped to the wrong monitor. Run `TabletPC.cpl` → Setup, press Enter until the prompt appears on the panel, then touch it. Nothing in Device Manager will look wrong: the digitizer reports ready and `TouchGate` stays 1, the input just lands on another screen.
+**If a tap does nothing**, run `npm run dev:taps` and touch the thing that will
+not respond. Coordinates in the console mean the touch arrived, and the problem
+is above that line. Silence means it never reached the window, and the mapping
+below is the first thing to check.
+
+**If touch does nothing at all**, Windows has the digitizer mapped to the wrong monitor. Run `TabletPC.cpl` → Setup, press Enter until the prompt appears on the panel, then touch it. Nothing in Device Manager will look wrong: the digitizer reports ready and `TouchGate` stays 1, the input just lands on another screen.
 
 ## Licence
 
