@@ -456,7 +456,7 @@ export function Settings() {
         <p class="lede">Shown on the System card. Anything switched off is never even read.</p>
         {(
           [
-            ['cpuTemp', 'CPU temperature', 'Needs LibreHardwareMonitor running as administrator.'],
+            ['cpuTemp', 'CPU temperature', 'Needs LibreHardwareMonitor, elevated, web server on.'],
             ['cpuLoad', 'CPU load', 'Free, straight from the OS.'],
             ['gpuTemp', 'GPU temperature', 'NVIDIA only, through nvidia-smi.'],
             ['gpuLoad', 'GPU load', 'NVIDIA only.'],
@@ -491,8 +491,9 @@ export function Settings() {
         <p class="hint">
           Refreshed every 5 seconds. GPU figures come from <code>nvidia-smi</code>, which installs with the
           driver and needs no permissions. There is no supported way to read a modern CPU's temperature on
-          Windows, so that one needs LibreHardwareMonitor: install it, run it as administrator, and the
-          reading appears on its own.
+          Windows. That one needs LibreHardwareMonitor running as administrator with its web server
+          switched on, under Options, Remote Web Server. The panel reads it over HTTP on every
+          refresh, so starting or closing it shows up within five seconds.
         </p>
       </section>
 

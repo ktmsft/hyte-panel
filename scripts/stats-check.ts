@@ -9,7 +9,6 @@ import {
   cpuName,
   cpuTemperature,
   disk,
-  hasHardwareMonitor,
   memory,
   nvidiaGpu,
   uptimeSeconds
@@ -64,13 +63,17 @@ if (!gpu) {
   note('  fan', gpu.fanPercent === null ? null : `${gpu.fanPercent}%`)
 }
 
-const monitor = await hasHardwareMonitor()
-results.push(['LibreHardwareMonitor', monitor ? 'present' : 'not installed'])
-if (monitor) {
-  const temp = await cpuTemperature()
-  note('CPU temperature', temp === null ? null : `${temp}°C`, 'no matching CPU sensor')
+const temp = await cpuTemperature()
+if ('celsius' in temp) {
+  results.push(['LibreHardwareMonitor', 'reachable'])
+  note('CPU temperature', `${temp.celsius}°C`)
 } else {
-  note('CPU temperature', null, 'expected: needs LibreHardwareMonitor')
+  results.push(['LibreHardwareMonitor', temp.error === 'offline' ? 'not reachable' : 'reachable'])
+  note(
+    'CPU temperature',
+    null,
+    temp.error === 'offline' ? 'not running, or its web server is off' : 'no CPU sensor exposed'
+  )
 }
 
 const width = Math.max(...results.map(([label]) => label.length))

@@ -5,7 +5,6 @@ import {
   cpuName,
   cpuTemperature,
   disk,
-  hasHardwareMonitor,
   memory,
   nvidiaGpu,
   uptimeSeconds,
@@ -41,9 +40,6 @@ const ORDER: StatId[] = [
   'disk',
   'uptime'
 ]
-
-/** Checked once: without LibreHardwareMonitor there is no point spawning WMI. */
-let monitorPresent: boolean | null = null
 
 /**
  * Temperatures are shown as a bar across the band worth watching. From zero a
@@ -161,15 +157,18 @@ export async function collectStats(): Promise<StatReading[]> {
   }
 
   if (wanted.has('cpuTemp')) {
-    if (monitorPresent === null) monitorPresent = await hasHardwareMonitor()
-    if (!monitorPresent) {
-      out.push(unavailable('cpuTemp', 'CPU temp', 'Needs LibreHardwareMonitor'))
-    } else {
-      const temp = await cpuTemperature()
+    const temp = await cpuTemperature()
+    if ('celsius' in temp) {
       out.push(
-        temp === null
-          ? unavailable('cpuTemp', 'CPU temp', 'No CPU sensor reported')
-          : stat('cpuTemp', 'CPU temp', String(Math.round(temp)), '°C', null, tempFraction(temp))
+        stat('cpuTemp', 'CPU temp', String(Math.round(temp.celsius)), '°C', null, tempFraction(temp.celsius))
+      )
+    } else {
+      out.push(
+        unavailable(
+          'cpuTemp',
+          'CPU temp',
+          temp.error === 'offline' ? 'Needs LibreHardwareMonitor' : 'No CPU sensor found'
+        )
       )
     }
   }

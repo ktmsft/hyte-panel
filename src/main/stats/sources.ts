@@ -6,8 +6,9 @@ import { cpus, freemem, totalmem, uptime } from 'node:os'
  * Where each number comes from, and what it costs.
  *
  * CPU load, memory and uptime are free: Node already has them. Disk uses
- * fs.statfs, which is also free. Only the GPU and the CPU temperature need a
- * process spawned, so those are the only ones that can be slow or missing.
+ * fs.statfs, which is also free. The CPU temperature is one HTTP call to
+ * LibreHardwareMonitor. Only the GPU spawns anything, so it is the only source
+ * that costs a process.
  */
 
 export interface GpuReading {
@@ -147,46 +148,84 @@ export async function nvidiaGpu(): Promise<GpuReading | null> {
 
 /**
  * There is no supported way to read a Ryzen's temperature on Windows: it lives
- * in SMU registers that need a kernel driver. LibreHardwareMonitor ships one and
- * publishes readings to WMI, so that is the source when it is running.
+ * in SMU registers that need a kernel driver. LibreHardwareMonitor ships one.
+ *
+ * Its local web server is used rather than its WMI provider: a plain HTTP GET
+ * beats spawning PowerShell every few seconds, and recent builds do not publish
+ * WMI at all. Enable it under Options, Remote Web Server, Run.
  *
  * ACPI's MSAcpi_ThermalZoneTemperature is deliberately not used: on this class
  * of machine it reports "Not supported", and where it does answer it is a
  * chipset zone rather than the CPU.
  */
-const LHM_QUERY = [
-  '-NoProfile',
-  '-NonInteractive',
-  '-Command',
-  "$ErrorActionPreference='Stop';" +
-    "try{" +
-    "$s=Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop|" +
-    "Where-Object{$_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU (Package|Tctl|Tdie|Total)'}|" +
-    "Select-Object -First 1;" +
-    "if($s){[math]::Round($s.Value,0)}else{''}" +
-    "}catch{''}"
-]
+const LHM_URL = 'http://127.0.0.1:8085/data.json'
+const LHM_TIMEOUT_MS = 2000
 
-export async function cpuTemperature(): Promise<number | null> {
-  try {
-    return num(await run('powershell.exe', LHM_QUERY))
-  } catch {
-    return null
-  }
+interface LhmNode {
+  Text?: string
+  Value?: string
+  Type?: string
+  SensorId?: string
+  Children?: LhmNode[]
 }
 
-/** Cheap check so the WMI query is only spawned on machines that can answer it. */
-export async function hasHardwareMonitor(): Promise<boolean> {
-  try {
-    const output = await run('powershell.exe', [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      "if(Get-CimInstance -Namespace root -ClassName __Namespace -ErrorAction SilentlyContinue|" +
-        "Where-Object{$_.Name -eq 'LibreHardwareMonitor'}){'yes'}else{'no'}"
-    ])
-    return output.trim() === 'yes'
-  } catch {
-    return false
+/**
+ * Sensor names vary by vendor and by chip. On this Ryzen the package reads
+ * `Core (Tctl/Tdie)`, with no "CPU" in it at all, so matching is by preference
+ * with a fallback to the hottest CPU sensor rather than by one fixed name.
+ */
+const CPU_SENSOR_PRIORITY = [
+  /^Core \(Tctl/i,
+  /^CPU Package$/i,
+  /Tdie/i,
+  /^Core Average$/i,
+  /^CPU$/i
+]
+
+export type CpuTemperature =
+  | { celsius: number }
+  /** LibreHardwareMonitor is not reachable. */
+  | { error: 'offline' }
+  /** It answered, but exposed no CPU temperature. */
+  | { error: 'nosensor' }
+
+/** `78.0 °C` and `78,0 °C` both appear, depending on locale. */
+function parseValue(value: string | undefined): number | null {
+  const parsed = Number.parseFloat((value ?? '').replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function collectTemperatures(node: LhmNode, into: { id: string; name: string; celsius: number }[]): void {
+  if (node.Type === 'Temperature' && node.SensorId) {
+    const celsius = parseValue(node.Value)
+    if (celsius !== null) into.push({ id: node.SensorId, name: node.Text ?? '', celsius })
   }
+  for (const child of node.Children ?? []) collectTemperatures(child, into)
+}
+
+/**
+ * Deliberately not cached: starting or closing LibreHardwareMonitor should show
+ * up on the panel within a refresh, without restarting the app.
+ */
+export async function cpuTemperature(): Promise<CpuTemperature> {
+  let root: LhmNode
+  try {
+    const response = await fetch(LHM_URL, { signal: AbortSignal.timeout(LHM_TIMEOUT_MS) })
+    if (!response.ok) return { error: 'offline' }
+    root = (await response.json()) as LhmNode
+  } catch {
+    return { error: 'offline' }
+  }
+
+  const all: { id: string; name: string; celsius: number }[] = []
+  collectTemperatures(root, all)
+  const cpu = all.filter((sensor) => /^\/(amd|intel)cpu\//i.test(sensor.id))
+  if (cpu.length === 0) return { error: 'nosensor' }
+
+  for (const pattern of CPU_SENSOR_PRIORITY) {
+    const hit = cpu.find((sensor) => pattern.test(sensor.name))
+    if (hit) return { celsius: hit.celsius }
+  }
+  // Unknown naming: the hottest CPU sensor is the safest stand-in.
+  return { celsius: Math.max(...cpu.map((sensor) => sensor.celsius)) }
 }

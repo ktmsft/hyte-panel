@@ -32,7 +32,7 @@ off is never read, so the cost matches what is on screen.
 | CPU load, memory, uptime | Node's `os` | free |
 | Disk | `fs.statfs` | free |
 | GPU temp, load, VRAM, power, fan | `nvidia-smi` | one small spawn per refresh |
-| CPU temperature | LibreHardwareMonitor over WMI | a spawn, and only if it is installed |
+| CPU temperature | LibreHardwareMonitor's web server | one HTTP call |
 
 Refreshed every 5 seconds. `nvidia-smi` installs with the NVIDIA driver, sits on
 `PATH`, and needs no permissions, which makes the GPU the one piece of real
@@ -42,9 +42,27 @@ hardware telemetry available for nothing.
 on a modern desktop CPU: it lives in registers that need a kernel driver.
 `MSAcpi_ThermalZoneTemperature` answers "Not supported" on this class of machine,
 and where it does answer it reports a chipset zone rather than the CPU, so it is
-not used. Install LibreHardwareMonitor and leave it running as administrator and
-the reading appears on its own; without it the card says so rather than showing a
-number it made up.
+not used.
+
+LibreHardwareMonitor ships the driver. Three things have to be true:
+
+1. It is **running**. The sensors exist only while it is alive.
+2. It is running **as administrator**, or it cannot load its driver.
+3. Its **web server** is on: Options, Remote Web Server, Run. Port 8085.
+
+The web server is used rather than its WMI provider. A plain HTTP GET beats
+spawning PowerShell every few seconds, and recent builds publish no WMI
+namespace at all, so the WMI route simply does not work.
+
+To have it there without thinking about it, register a scheduled task that runs
+it at logon with highest privileges: that is the only way to start something
+elevated without a UAC prompt each boot. The panel re-reads on every refresh and
+is not cached, so starting or closing it shows up within five seconds either way.
+
+Sensor naming is not consistent. On a Ryzen 9800X3D the package reads
+`Core (Tctl/Tdie)`, with no "CPU" anywhere in the name, so the reading is matched
+by a list of preferences and falls back to the hottest CPU sensor rather than one
+fixed string. `npm run check:stats` prints what was found.
 
 HYTE Nexus knows the CPU temperature, since displaying it is the point of the
 Y70's screen, and its local service does answer on `127.0.0.1`. It returns 401 to
