@@ -802,10 +802,11 @@ button {
 
 /* ---------- system stats ---------- */
 
-/* Two across on the panel; one when the dev window is narrow. */
+/* Two across on the panel; one when the dev window is narrow. The minimum is
+   sized so a large number never has to share a row with a third tile. */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: 0.6rem;
 }
 
@@ -818,11 +819,12 @@ button {
 }
 
 .stat-label {
-  color: var(--faint);
-  font-size: 0.72rem;
+  color: var(--text);
+  font-size: 1.05rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  text-shadow: var(--label-shadow);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -830,7 +832,7 @@ button {
 
 /* The number is the point of the tile, so it gets the room. */
 .stat-number {
-  font-size: 2.4rem;
+  font-size: 3.6rem;
   line-height: 1.05;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -839,7 +841,7 @@ button {
 }
 
 .stat-unit {
-  font-size: 0.95rem;
+  font-size: 1.3rem;
   font-weight: 500;
   color: var(--muted);
   margin-left: 0.15rem;

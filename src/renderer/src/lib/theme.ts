@@ -74,6 +74,9 @@ export function applyTheme(theme: ThemeConfig, glassMode: GlassMode): void {
   // Dark text over a bright wallpaper wants a light halo, not a dark shadow.
   const shadow = isLight(theme.text) ? '0 1px 4px rgba(0, 0, 0, 0.9)' : '0 1px 3px rgba(255, 255, 255, 0.7)'
   set('--text-shadow', theme.textShadow ? shadow : 'none')
+  // Stat labels carry a halo whatever the body setting says: they sit over
+  // translucent glass with the wallpaper right behind them.
+  set('--label-shadow', shadow)
 }
 
 /** The gap the layout was drawn at, in rem. gapScale multiplies it. */
