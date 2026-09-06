@@ -10,11 +10,13 @@ import type {
   MailDetail,
   MicrosoftStatus,
   PanelId,
+  PictureSource,
   StatId,
   SourceId,
   TaskProviderId,
   ThemeConfig
 } from '@shared/types'
+import { PANEL_LABELS, resolveOrder } from '@shared/panels'
 import { FONT_STACKS, presetById, THEME_PRESETS } from '@shared/themes'
 import { isLight } from '@/lib/theme'
 
@@ -70,6 +72,7 @@ export function Settings() {
   /** null means untouched, so the saved client ID shows through. */
   const [clientIdDraft, setClientIdDraft] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [dragging, setDragging] = useState<PanelId | null>(null)
 
   useEffect(() => {
     void window.hyte.getConfig().then(setConfig)
@@ -96,6 +99,7 @@ export function Settings() {
   if (!config) return null
 
   const { theme, feeds: feedsConfig } = config
+  const order = resolveOrder(config.panelOrder)
 
   /** Any hand edit means this is no longer a preset. */
   async function patchTheme(update: Partial<ThemeConfig>): Promise<void> {
@@ -167,6 +171,21 @@ export function Settings() {
     void patch({
       feeds: { ...feedsConfig, mail: { ...feedsConfig.mail, [id]: { ...feedsConfig.mail[id], ...update } } }
     })
+  }
+
+  /** Moves `from` to where `to` currently sits, closing the gap behind it. */
+  function movePanel(from: PanelId, to: PanelId): void {
+    const next = [...order]
+    const at = next.indexOf(from)
+    const onto = next.indexOf(to)
+    if (at < 0 || onto < 0 || at === onto) return
+    next.splice(at, 1)
+    next.splice(onto, 0, from)
+    void patch({ panelOrder: next })
+  }
+
+  async function choosePicture(): Promise<void> {
+    setConfig(await window.hyte.choosePicture(config!.image.source))
   }
 
   function patchCalendar(id: string, update: Partial<(typeof feedsConfig)['calendars'][number]>): void {
@@ -541,16 +560,22 @@ export function Settings() {
       <section>
         <h2>Panels</h2>
         <p class="lede">Cards stack in this order. Hiding one closes the gap it left.</p>
-        {(
-          [
-            ['clock', 'Clock'],
-            ['stats', 'System stats'],
-            ['agenda', 'Agenda'],
-            ['todos', 'To-dos'],
-            ['alerts', 'Alerts']
-          ] as [PanelId, string][]
-        ).map(([id, label]) => (
-          <div class="row" key={id}>
+        {order.map((id) => (
+          <div
+            class={`panel-row${dragging === id ? ' dragging' : ''}`}
+            key={id}
+            draggable
+            onDragStart={() => setDragging(id)}
+            onDragEnd={() => setDragging(null)}
+            onDragOver={(event) => {
+              // Without this the drop is refused and nothing can be rearranged.
+              event.preventDefault()
+              if (dragging && dragging !== id) movePanel(dragging, id)
+            }}
+          >
+            <span class="drag-handle" aria-hidden="true">
+              ⠿
+            </span>
             <label class="toggle">
               <input
                 type="checkbox"
@@ -559,10 +584,11 @@ export function Settings() {
                   void patch({ panels: { ...config.panels, [id]: event.currentTarget.checked } })
                 }
               />
-              {label}
+              {PANEL_LABELS[id]}
             </label>
           </div>
         ))}
+        <p class="hint">Drag a row by any part of it to change the order on the panel.</p>
         <div class="row">
           <span>Time</span>
           <div class="segmented">
@@ -590,6 +616,98 @@ export function Settings() {
           Whichever of To-dos, Agenda or Alerts is showing takes the leftover height, so the stack always
           fills the screen. With the clock hidden the gear goes with it, so a settings button appears in
           the panel's top corner instead.
+        </p>
+      </section>
+
+      <section>
+        <h2>Picture</h2>
+        <p class="lede">A card for one image, or a folder cycled through. Switch it on under Panels.</p>
+
+        <div class="row">
+          <span>Show</span>
+          <div class="segmented">
+            {(
+              [
+                ['file', 'One picture'],
+                ['folder', 'A folder']
+              ] as [PictureSource, string][]
+            ).map(([source, label]) => (
+              <button
+                key={source}
+                class={config.image.source === source ? 'active' : ''}
+                onClick={() => void patch({ image: { ...config.image, source } })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <span class="spacer" />
+          <button class="action primary" onClick={() => void choosePicture()}>
+            {config.image.source === 'folder' ? 'Choose folder' : 'Choose picture'}
+          </button>
+        </div>
+
+        <p class={config.image.path ? 'notice ok' : 'notice warn'}>
+          {config.image.path || 'Nothing chosen yet.'}
+        </p>
+
+        <div class="row">
+          <span>Height</span>
+          <input
+            type="range"
+            min="8"
+            max="60"
+            step="1"
+            value={config.image.heightRem}
+            onInput={(event) =>
+              void patch({ image: { ...config.image, heightRem: Number(event.currentTarget.value) } })
+            }
+          />
+          <span class="value">{config.image.heightRem}rem</span>
+        </div>
+
+        {config.image.source === 'folder' && (
+          <div class="row">
+            <span>Each picture for</span>
+            <input
+              type="range"
+              min="2"
+              max="300"
+              step="1"
+              value={config.image.intervalSeconds}
+              onInput={(event) =>
+                void patch({
+                  image: { ...config.image, intervalSeconds: Number(event.currentTarget.value) }
+                })
+              }
+            />
+            <span class="value">{config.image.intervalSeconds}s</span>
+          </div>
+        )}
+
+        <div class="row">
+          <span>Fit</span>
+          <div class="segmented">
+            {(
+              [
+                ['cover', 'Fill and crop'],
+                ['contain', 'Fit it all in']
+              ] as [typeof config.image.fit, string][]
+            ).map(([fit, label]) => (
+              <button
+                key={fit}
+                class={config.image.fit === fit ? 'active' : ''}
+                onClick={() => void patch({ image: { ...config.image, fit } })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p class="hint">
+          GIFs animate. Pictures are served over a scheme of the app's own, fenced to whatever is chosen
+          here, so nothing else on the disk is reachable from the panel. A folder is read in name order
+          and rotated; adding or removing a file is picked up when the source changes.
         </p>
       </section>
 

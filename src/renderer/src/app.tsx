@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
+import { resolveOrder } from '@shared/panels'
 import type { AppConfig, PanelId, PanelState } from '@shared/types'
 import { applyScale, applyTheme } from './lib/theme'
 import { Clock } from './widgets/Clock'
+import { Picture } from './widgets/Picture'
 import { Stats } from './widgets/Stats'
 import { Agenda } from './widgets/Agenda'
 import { Todos } from './widgets/Todos'
 import { Alerts } from './widgets/Alerts'
 import { Settings } from './settings/Settings'
-
-/** Top to bottom, as stacked on the portrait panel. */
-const PANEL_ORDER: PanelId[] = ['clock', 'stats', 'agenda', 'todos', 'alerts']
 
 /**
  * Whichever of these is visible first takes the leftover height. The rows are
@@ -33,6 +32,27 @@ function usePanelState(): PanelState | null {
   return state
 }
 
+/**
+ * The renderer cannot read the disk, so the list of pictures comes from main.
+ * Re-read whenever the source changes, or the card would keep showing whatever
+ * the last folder held.
+ */
+function usePictures(config: AppConfig | null): string[] {
+  const [urls, setUrls] = useState<string[]>([])
+  const source = config ? `${config.image.source}:${config.image.path}` : ''
+  const shown = config?.panels.image ?? false
+
+  useEffect(() => {
+    if (!shown) {
+      setUrls([])
+      return
+    }
+    void window.hyte.listPictures().then(setUrls)
+  }, [source, shown])
+
+  return urls
+}
+
 function useConfig(): AppConfig | null {
   const [config, setConfig] = useState<AppConfig | null>(null)
   useEffect(() => {
@@ -45,6 +65,7 @@ function useConfig(): AppConfig | null {
 export function App() {
   const state = usePanelState()
   const config = useConfig()
+  const pictures = usePictures(config)
 
   useEffect(() => {
     document.body.classList.toggle('panel', !isSettingsWindow)
@@ -95,6 +116,14 @@ export function App() {
       <Clock key="clock" mock={state.mock} hour12={config.clockHour12} onOpenSettings={openSettings} />
     ),
     stats: <Stats key="stats" stats={state.stats} />,
+    image: (
+      <Picture
+        key="image"
+        urls={pictures}
+        intervalSeconds={config.image.intervalSeconds}
+        fit={config.image.fit}
+      />
+    ),
     agenda: (
       <Agenda
         key="agenda"
@@ -115,9 +144,16 @@ export function App() {
     )
   }
 
-  const visible = PANEL_ORDER.filter((id) => config.panels[id])
+  const visible = resolveOrder(config.panelOrder).filter((id) => config.panels[id])
   const filler = FILL_PRIORITY.find((id) => config.panels[id])
-  const gridTemplateRows = visible.map((id) => (id === filler ? 'minmax(20rem, 1fr)' : 'auto')).join(' ')
+  // The picture is the one card with a height of its own; the rest are sized by
+  // their content, bar whichever takes the slack.
+  const gridTemplateRows = visible
+    .map((id) => {
+      if (id === 'image') return `${config.image.heightRem}rem`
+      return id === filler ? 'minmax(20rem, 1fr)' : 'auto'
+    })
+    .join(' ')
 
   return (
     <>

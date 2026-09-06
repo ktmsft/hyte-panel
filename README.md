@@ -140,6 +140,22 @@ number holds exactly, so they are read as BigInt.
 Matching takes any notification source whose name contains `discord`, so the PTB
 and Canary builds count too.
 
+## Picture
+
+Settings, Picture. One image, or a folder cycled through. GIFs animate. It is the
+one card with a height of its own; the rest are sized by their content.
+
+The renderer has no file access and `file://` is blocked by web security, so
+pictures come through a scheme of the app's own. Every request is checked against
+what settings currently points at, and only that: the chosen file, or a file
+sitting directly in the chosen folder, with a picture extension. A scheme the
+renderer can name is a way to read any file on the disk unless it is fenced, and
+the panel only ever needs the one place.
+
+Folders are read in name order, so a rotation runs the same way twice. Adding or
+removing a file is picked up when the source changes rather than continuously,
+since a folder is not watched.
+
 ## Typing on the panel
 
 There is no on-screen keyboard, on purpose. Windows already has one, and the PC
@@ -179,7 +195,12 @@ added in there would vanish on every existing install.
 
 ## Panels
 
-Settings, Panels. Clock, System, Agenda, To-dos and Alerts can each be switched off. Rows
+Settings, Panels. Clock, System, Agenda, To-dos, Alerts and Picture can each be
+switched off, and dragged into whatever order suits.
+
+The saved order is reconciled against the panels that exist on every read, so an
+order written before a panel was added still picks the new one up, and one naming
+a panel since removed does not break. Rows
 are built from the visible set rather than being fixed, so a hidden card leaves no
 gap, and whichever of To-dos, Agenda or Alerts is still showing takes the leftover
 height so the stack fills the screen.

@@ -22,6 +22,8 @@ export const IPC = {
   microsoftLists: 'microsoft:lists',
   panelFocus: 'panel:focus',
   sourceLaunch: 'source:launch',
+  pictureChoose: 'picture:choose',
+  pictureList: 'picture:list',
   settingsOpen: 'settings:open',
   settingsClose: 'settings:close',
   taskAdd: 'task:add',

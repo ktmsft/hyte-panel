@@ -17,7 +17,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   glassMode: 'clear',
   alwaysOnTop: true,
   alertsLayout: 'list',
-  panels: { clock: true, stats: true, agenda: true, todos: true, alerts: true },
+  panels: { clock: true, stats: true, agenda: true, todos: true, alerts: true, image: false },
+  panelOrder: ['clock', 'stats', 'agenda', 'todos', 'alerts', 'image'],
+  image: { source: 'file', path: '', heightRem: 22, intervalSeconds: 30, fit: 'cover' },
   clockHour12: true,
   // The free ones plus what an NVIDIA card gives up without asking. The rest
   // are off so the card stays short on a portrait panel.

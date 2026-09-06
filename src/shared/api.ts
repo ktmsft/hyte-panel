@@ -5,6 +5,7 @@ import type {
   MailAccountId,
   MicrosoftStatus,
   PanelState,
+  PictureSource,
   SourceId
 } from './types'
 
@@ -45,6 +46,10 @@ export interface HyteApi {
   focusPanel(): Promise<void>
   /** Opens whatever an alert is pointed at. Does nothing if it points nowhere. */
   launchSource(id: SourceId): Promise<void>
+  /** Opens a picker and saves what was chosen. Returns the updated config. */
+  choosePicture(source: PictureSource): Promise<AppConfig>
+  /** Every picture the panel may show, as URLs the renderer can load. */
+  listPictures(): Promise<string[]>
   openSettings(): Promise<void>
   closeSettings(): Promise<void>
   addTask(title: string): Promise<PanelState>

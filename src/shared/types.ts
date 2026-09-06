@@ -187,7 +187,7 @@ export interface BlueskyConfig {
 }
 
 /** The cards on the panel, in the order they are stacked. */
-export type PanelId = 'clock' | 'stats' | 'agenda' | 'todos' | 'alerts'
+export type PanelId = 'clock' | 'stats' | 'agenda' | 'todos' | 'alerts' | 'image'
 
 /**
  * One number on the System card. GPU figures come from nvidia-smi, which ships
@@ -251,6 +251,21 @@ export interface MicrosoftStatus {
   lastError: string | null
 }
 
+/** A single picture, or a folder cycled through. */
+export type PictureSource = 'file' | 'folder'
+
+export interface ImageConfig {
+  source: PictureSource
+  /** The chosen file or folder. Empty until one is picked. */
+  path: string
+  /** Height of the card. This panel is the one with a size of its own. */
+  heightRem: number
+  /** Seconds each picture is shown, when pointed at a folder. */
+  intervalSeconds: number
+  /** `cover` fills the card and crops; `contain` fits the whole picture in. */
+  fit: 'cover' | 'contain'
+}
+
 export interface AppConfig {
   /** Bumped when a saved config needs migrating. */
   configVersion: number
@@ -264,6 +279,12 @@ export interface AppConfig {
   alertsLayout: AlertsLayout
   /** Which cards are on screen. Hiding them all is allowed. */
   panels: Record<PanelId, boolean>
+  /**
+   * Top to bottom. Reconciled against the known panels on read, so an order
+   * saved before a panel existed still picks the new one up.
+   */
+  panelOrder: PanelId[]
+  image: ImageConfig
   /**
    * 12-hour clock with AM/PM, rather than 24-hour. Applies to the clock and to
    * event times together, so the two cannot disagree.

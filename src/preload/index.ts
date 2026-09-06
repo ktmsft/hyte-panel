@@ -7,6 +7,7 @@ import type {
   MailAccountId,
   MicrosoftStatus,
   PanelState,
+  PictureSource,
   SourceId
 } from '@shared/types'
 
@@ -58,6 +59,8 @@ const api: HyteApi = {
   setDisplay: (displayId: number) => ipcRenderer.invoke(IPC.panelSetDisplay, displayId),
   focusPanel: () => ipcRenderer.invoke(IPC.panelFocus),
   launchSource: (id: SourceId) => ipcRenderer.invoke(IPC.sourceLaunch, id),
+  choosePicture: (source: PictureSource) => ipcRenderer.invoke(IPC.pictureChoose, source),
+  listPictures: () => ipcRenderer.invoke(IPC.pictureList),
   openSettings: () => ipcRenderer.invoke(IPC.settingsOpen),
   closeSettings: () => ipcRenderer.invoke(IPC.settingsClose),
   addTask: (title: string) => ipcRenderer.invoke(IPC.taskAdd, title),

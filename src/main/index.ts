@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, screen, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, screen, shell } from 'electron'
 import { join } from 'node:path'
-import type { AppConfig, MailAccountId, SourceId } from '@shared/types'
+import type { AppConfig, MailAccountId, PictureSource, SourceId } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import { getConfig, setConfig } from './config'
 import { findPanelDisplay, listDisplays } from './display'
@@ -14,6 +14,7 @@ import {
   setMailPassword
 } from './feeds/store'
 import { refreshNow, startPolling } from './poll'
+import { handleMediaRequests, listPictures, registerMediaScheme } from './media'
 import { forgetSession } from './sources/bluesky'
 import { applyPanelTaskbar, restorePanelTaskbar } from './taskbar'
 import { getState, subscribe, syncSourcesEnabled, syncTaskProvider } from './state'
@@ -439,6 +440,25 @@ function registerIpc(): void {
       console.error('[launch]', err instanceof Error ? err.message : err)
     }
   })
+  ipcMain.handle(IPC.pictureChoose, async (_event, source: PictureSource) => {
+    const result = await dialog.showOpenDialog({
+      title: source === 'folder' ? 'Choose a folder of pictures' : 'Choose a picture',
+      properties: [source === 'folder' ? 'openDirectory' : 'openFile'],
+      filters:
+        source === 'folder'
+          ? undefined
+          : [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp'] }]
+    })
+    const chosen = result.canceled ? null : result.filePaths[0]
+    if (!chosen) return getConfig()
+
+    const previous = getConfig()
+    const next = setConfig({ image: { ...previous.image, source, path: chosen } })
+    applyConfig(previous, next)
+    broadcast(IPC.configChanged, next)
+    return next
+  })
+  ipcMain.handle(IPC.pictureList, () => listPictures())
   ipcMain.handle(IPC.settingsOpen, () => {
     try {
       openSettingsWindow()
@@ -464,6 +484,8 @@ function registerIpc(): void {
   ipcMain.handle(IPC.appQuit, () => app.quit())
 }
 
+registerMediaScheme()
+
 /** A second launch focuses the panel instead of duplicating it. */
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -481,6 +503,7 @@ if (!app.requestSingleInstanceLock()) {
     // The single mailbox became named ones; move the old password across.
     migrateSecrets()
 
+    handleMediaRequests()
     registerIpc()
     subscribe((state) => broadcast(IPC.stateChanged, state))
     // A refresh result is news for the settings window too.
