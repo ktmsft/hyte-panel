@@ -4,12 +4,11 @@ import { AuthError, claimFromIdToken, describe, postToken, signIn, type Endpoint
 import { encryptionAvailable, getSecret, setSecret } from '../secrets'
 
 /**
- * Microsoft To Do through Graph. A public client with PKCE and no secret, which
- * is all the identity platform asks of a desktop app.
+ * Microsoft To Do through Graph. A public client with PKCE and no secret.
  *
- * Refresh tokens last 90 days and are replaced on every use, so a panel that
- * polls all day never has to sign in again. That is the whole reason tasks went
- * to Microsoft rather than Google, whose unverified apps expire weekly.
+ * Refresh tokens last 90 days and are replaced on every use, so a panel polling
+ * all day never signs in twice. Google's unverified apps expire weekly, which is
+ * why tasks went here.
  */
 
 // The consumers tenant: personal Microsoft accounts, not work or school.

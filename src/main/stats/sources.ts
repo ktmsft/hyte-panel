@@ -3,12 +3,8 @@ import { statfs } from 'node:fs/promises'
 import { cpus, freemem, totalmem, uptime } from 'node:os'
 
 /**
- * Where each number comes from, and what it costs.
- *
- * CPU load, memory and uptime are free: Node already has them. Disk uses
- * fs.statfs, which is also free. The CPU temperature is one HTTP call to
- * LibreHardwareMonitor. Only the GPU spawns anything, so it is the only source
- * that costs a process.
+ * Where each number comes from. Load, memory, uptime and disk are free — Node
+ * has them. CPU temperature is one HTTP call. Only the GPU spawns a process.
  */
 
 export interface GpuReading {
@@ -160,16 +156,12 @@ function limitFrom(temperature: number | null, headroom: number | null): number 
 // ---------------------------------------------------------------- cpu temperature
 
 /**
- * There is no supported way to read a Ryzen's temperature on Windows: it lives
- * in SMU registers that need a kernel driver. LibreHardwareMonitor ships one.
+ * A Ryzen's temperature lives in SMU registers that need a kernel driver, so
+ * this goes through LibreHardwareMonitor's web server (Options, Remote Web
+ * Server, Run). Its WMI provider is not used; recent builds publish none.
  *
- * Its local web server is used rather than its WMI provider: a plain HTTP GET
- * beats spawning PowerShell every few seconds, and recent builds do not publish
- * WMI at all. Enable it under Options, Remote Web Server, Run.
- *
- * ACPI's MSAcpi_ThermalZoneTemperature is deliberately not used: on this class
- * of machine it reports "Not supported", and where it does answer it is a
- * chipset zone rather than the CPU.
+ * MSAcpi_ThermalZoneTemperature reports "Not supported" here, and where it does
+ * answer it is a chipset zone rather than the CPU.
  */
 const LHM_URL = 'http://127.0.0.1:8085/data.json'
 const LHM_TIMEOUT_MS = 2000

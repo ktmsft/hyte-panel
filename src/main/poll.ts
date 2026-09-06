@@ -201,11 +201,9 @@ async function pollDiscord(): Promise<void> {
     return
   }
 
-  // The badge is the number on the icon, and the one worth showing: Discord
-  // withdraws a toast once the channel has been read, so an unread mention you
-  // have not opened badges the taskbar while leaving the store empty. The
-  // store is still where the list of what arrived comes from. Only the stable
-  // build carries the badge id; the toast list covers PTB and Canary too.
+  // Discord drops its toast once the channel is read but keeps badging the icon,
+  // so the badge is the count and the store only supplies the list. The badge id
+  // is the stable build's; the list still covers PTB and Canary.
   const badge = await readTaskbarBadge(DISCORD_AUMID)
 
   if (!summary.known && !badge?.pinned) {

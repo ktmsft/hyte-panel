@@ -4,22 +4,12 @@ import { join, sep } from 'node:path'
 import type { SourceItem } from '@shared/types'
 
 /**
- * Discord has no supported way to read your own unread count. Its RPC transport
- * gates message access behind the `rpc` OAuth scope, which Discord grants by
- * whitelist only, and the taskbar badge is not readable by anything.
+ * Reads Windows' notification store: the toasts sitting in Action Center, for
+ * any app. This supplies the list of what arrived; the count comes from the
+ * taskbar badge instead, see badge.ts.
  *
- * What is readable is Windows' own notification store: every toast still sitting
- * in Action Center, for every app. Discord posts native toasts, so its pending
- * notifications are there.
- *
- * The alternative was UserNotificationListener, which needs package identity, so
- * a sparse MSIX, a trusted certificate and a WinRT helper, and yields the same
- * set of notifications. This reads the same data for the cost of a SQL query.
- *
- * What this is NOT: Discord's unread badge. It counts notifications waiting for
- * attention. Dismissing them clears it, and messages that arrive while Discord
- * is focused never raise a toast at all. For a panel you glance at, "waiting for
- * you" is arguably the more useful number, but it is a different number.
+ * The alternative was UserNotificationListener, which wants package identity —
+ * a sparse MSIX, a certificate and a WinRT helper — for the same data.
  */
 
 const DB_PATH = join(

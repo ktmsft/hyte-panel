@@ -15,9 +15,8 @@ import {
 const GPU_STATS: StatId[] = ['gpuTemp', 'gpuLoad', 'gpuVram', 'gpuPower', 'gpuFan']
 
 /**
- * The card is a two-column grid filled row by row, so this order is the layout.
- * Read it in pairs: each line is a row, the left column is heat and capacity,
- * the right is how hard the thing is working.
+ * A two-column grid filled row by row, so this order is the layout. Left column
+ * is heat and capacity, right is how hard the thing is working.
  *
  *   CPU temp     CPU load
  *   GPU temp     GPU load
@@ -25,8 +24,7 @@ const GPU_STATS: StatId[] = ['gpuTemp', 'gpuLoad', 'gpuVram', 'gpuPower', 'gpuFa
  *   GPU power    GPU fan
  *   Disk         Uptime
  *
- * Switching one off closes the gap rather than leaving a hole, so the pairing
- * holds for any run of adjacent choices and degrades tidily for the rest.
+ * Switching one off closes the gap rather than leaving a hole.
  */
 const ORDER: StatId[] = [
   'cpuTemp',

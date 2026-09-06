@@ -23,12 +23,10 @@ import { addTask, refreshTasks, removeTask, toggleTask } from './tasks'
 import * as microsoft from './tasks/microsoft'
 
 /**
- * Above ordinary topmost windows. HYTE Nexus wants this display too and also
- * asks to be on top, which made it last-writer-wins and cost the panel its own
- * screen at random. This band outranks a plain topmost window outright.
+ * Above ordinary topmost windows. Nexus wants this display too and also asks to
+ * be on top, which cost the panel its screen at random.
  *
- * Safe despite the name: the window is pinned to the panel's bounds, so it can
- * never cover anything on another display.
+ * Safe despite the name: the window is pinned to the panel's own bounds.
  */
 const PANEL_Z_LEVEL = 'screen-saver' as const
 
@@ -55,33 +53,22 @@ function loadRoute(window: BrowserWindow, route: 'panel' | 'settings'): void {
 }
 
 /**
- * The bounds that make the panel exactly cover its display.
+ * Bounds that make the panel cover its display exactly.
  *
- * A fresh window gets this right on its own. The reason it is a function is
- * what happens later: when the scale factor of *any* display changes, Windows
- * rescales this window too, even though it sits on a display whose own scaling
- * never moved. A 125% change on the primary grew the panel from 682x2560 to
- * 853x3200, a quarter larger than the screen, so the lower widgets fell off the
- * bottom and it read as though the page had zoomed.
- *
- * Electron keeps reporting the bounds that were asked for rather than the ones
- * Windows produced, so the drift cannot be detected by comparing them. The
- * bounds are simply re-applied instead.
+ * A fresh window gets this right. It is a function because of what happens
+ * later: changing any display's scale factor makes Windows rescale this one
+ * too, and a 125% primary grew it from 682x2560 to 853x3200. Electron still
+ * reports the size that was asked for, so the drift cannot be spotted by
+ * comparing them; the bounds are just re-applied.
  */
 function panelBounds(display: Display): Rectangle {
   return { ...display.bounds }
 }
 
 /**
- * Zoom is pinned shut on both windows.
- *
- * The panel has no keyboard and no browser chrome, so a page that zooms has no
- * way back: the widgets crop and nothing on screen undoes it. Chromium also
- * remembers a zoom level per origin, so one stray Ctrl+wheel survives restarts.
- *
- * Pinch is already blocked by touch-action in the stylesheet. This covers the
- * other two ways in, page zoom and the visual viewport, and puts the level back
- * if one gets through anyway.
+ * No keyboard and no browser chrome, so a zoomed page has no way back. Pinch is
+ * already blocked by touch-action; this covers page zoom and the visual
+ * viewport, which Chromium otherwise remembers per origin.
  */
 function lockZoom(contents: WebContents): void {
   const pin = (): void => {

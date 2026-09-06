@@ -1,15 +1,12 @@
 import { execFile, execFileSync } from 'node:child_process'
 
 /**
- * Windows has no per-monitor taskbar switch: "Show my taskbar on all displays"
- * is all or nothing across every secondary. So the panel's own taskbar window
- * is hidden directly instead, leaving the other monitors alone.
+ * Windows has no per-monitor taskbar switch, so the panel's own taskbar window
+ * is hidden directly and the other monitors are left alone.
  *
- * This is unsupported, and Windows undoes it whenever the shell rebuilds its
- * taskbars, so it is re-applied on display changes and on a slow timer.
- *
- * Electron cannot call user32 itself, hence PowerShell. The script is passed as
- * -EncodedCommand so no quoting or temp file is involved.
+ * Unsupported, and undone whenever the shell rebuilds its taskbars, so it is
+ * re-applied on display changes and on a slow timer. PowerShell because Electron
+ * cannot call user32.
  */
 
 export interface PanelSize {

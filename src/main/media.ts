@@ -5,13 +5,9 @@ import { pathToFileURL } from 'node:url'
 import { getConfig } from './config'
 
 /**
- * Serving local pictures to the renderer.
- *
- * The renderer has no file access, and `file://` is blocked by web security, so
- * pictures come through a scheme of their own. Every request is checked against
- * what settings currently points at: a scheme the renderer can name is a way to
- * read any file on the disk unless it is fenced, and the panel only ever needs
- * the one file or the one folder.
+ * Serves local pictures to the renderer, which has no file access and cannot use
+ * `file://`. A scheme the renderer can name reads anything on disk unless it is
+ * fenced, so every request is checked against what settings points at.
  */
 
 export const MEDIA_SCHEME = 'hyte-media'

@@ -72,12 +72,9 @@ export function App() {
   }, [])
 
   /**
-   * Taps that never arrive look exactly like taps whose handler did not fire,
-   * and telling those apart has cost hours. With HYTE_TAP_LOG=1 every touch
-   * prints where it landed, which answers it in one tap: wrong coordinates mean
-   * a mapping problem, silence means the touch never reached the window.
-   *
-   * Off by default, since it is one line per touch.
+   * A tap that never arrives looks exactly like one whose handler did not fire.
+   * With HYTE_TAP_LOG=1 every touch prints where it landed: wrong coordinates
+   * mean a mapping problem, silence means it never reached the window.
    */
   useEffect(() => {
     if (isSettingsWindow || !tapLogging) return undefined

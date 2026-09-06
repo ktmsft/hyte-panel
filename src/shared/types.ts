@@ -308,13 +308,11 @@ export interface AppConfig {
   theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
   /**
-   * What tapping an alert opens. A URL or a registered protocol goes to the
-   * shell; anything else is treated as a path. Empty means the tile does
-   * nothing.
+   * What tapping an alert opens. A URL or registered protocol goes to the shell,
+   * anything else is a path, empty does nothing.
    *
-   * Kept beside `sources` rather than inside it because the config merge is one
-   * level deep: a saved `sources` replaces the default wholesale, so a new field
-   * added in there would be lost on every existing install.
+   * Beside `sources` rather than inside it: the config merge is one level deep,
+   * so a field added in there would be lost on every existing install.
    */
   launch: Record<SourceId, string>
   feeds: FeedsConfig
