@@ -5,7 +5,7 @@ import { fetchMail } from './feeds/mail'
 import { calendarUrl, noteBlueskyError, noteCalendar, noteMailError } from './feeds/store'
 import { ImapError } from './imap'
 import { BlueskyError, fetchUnread, isConfigured } from './sources/bluesky'
-import { readTaskbarBadge } from './sources/badge'
+import { DISCORD_AUMID, readTaskbarBadge } from './sources/badge'
 import { readNotifications } from './sources/notifications'
 import { collectStats } from './stats'
 import { getState, goLive, setEvents, setSource, setStats } from './state'
@@ -189,13 +189,6 @@ const DISCORD_APPS = /discord/i
 /** How many toasts the Alerts card can list. */
 const DISCORD_PREVIEW = 5
 
-/**
- * The taskbar button Discord's badge sits on. Its PTB and Canary builds use
- * their own ids, so only the stable build's badge is read; the toast list below
- * still covers all three.
- */
-const DISCORD_AUMID = 'com.squirrel.Discord.Discord'
-
 async function pollDiscord(): Promise<void> {
   if (!getConfig().sources.discord.enabled) return
 
@@ -211,7 +204,8 @@ async function pollDiscord(): Promise<void> {
   // The badge is the number on the icon, and the one worth showing: Discord
   // withdraws a toast once the channel has been read, so an unread mention you
   // have not opened badges the taskbar while leaving the store empty. The
-  // store is still where the list of what arrived comes from.
+  // store is still where the list of what arrived comes from. Only the stable
+  // build carries the badge id; the toast list covers PTB and Canary too.
   const badge = await readTaskbarBadge(DISCORD_AUMID)
 
   if (!summary.known && !badge?.pinned) {
