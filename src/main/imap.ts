@@ -40,6 +40,16 @@ export class ImapError extends Error {}
 const CONNECT_TIMEOUT_MS = 15_000
 const COMMAND_TIMEOUT_MS = 20_000
 
+/**
+ * RFC 6066 forbids an IP address as the TLS server name, and Node has said it
+ * will start ignoring it. Bridge is reached at 127.0.0.1, so the field is simply
+ * left off there; it means nothing for a certificate that names an address.
+ */
+function serverName(host: string): string | undefined {
+  const isAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')
+  return isAddress ? undefined : host
+}
+
 /** IMAP quoted strings escape backslash and quote, and nothing else. */
 function quote(value: string): string {
   return `"${value.replace(/([\\"])/g, '\\$1')}"`
@@ -247,7 +257,7 @@ async function upgradeSocket(account: ImapAccount): Promise<TLSSocket> {
     const secure = tlsConnect(
       {
         socket: plain,
-        servername: account.host,
+        servername: serverName(account.host),
         rejectUnauthorized: account.allowSelfSigned !== true
       },
       () => resolve(secure)
@@ -259,7 +269,7 @@ async function upgradeSocket(account: ImapAccount): Promise<TLSSocket> {
 function implicitSocket(account: ImapAccount): Promise<TLSSocket> {
   return new Promise((resolve, reject) => {
     const socket = tlsConnect(
-      { host: account.host, port: account.port, servername: account.host },
+      { host: account.host, port: account.port, servername: serverName(account.host) },
       () => {
         socket.setTimeout(0)
         resolve(socket)
