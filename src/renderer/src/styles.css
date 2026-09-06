@@ -14,6 +14,7 @@
   --err: #f85149;
   --font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --text-shadow: none;
+  --label-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
   /* Derived in lib/theme.ts from the theme's own colours. */
   --on-accent: #05121f;
   --card-highlight: rgba(255, 255, 255, 0.09);
@@ -853,11 +854,18 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.stat-missing {
+.stat-number.absent {
   color: var(--faint);
-  font-size: 0.82rem;
-  line-height: 1.3;
-  margin-top: 0.4rem;
+}
+
+/* Muted, not faint: this is the whole content of the tile, so it has to be
+   read rather than merely present. */
+.stat-missing {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-shadow: var(--label-shadow);
 }
 
 .stat-bar {

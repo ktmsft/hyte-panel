@@ -30,7 +30,13 @@ export function Stats({ stats }: Props) {
                 <div class="stat-label">{stat.label}</div>
 
                 {stat.value === null ? (
-                  <div class="stat-missing">{stat.note ?? 'Unavailable'}</div>
+                  <>
+                    {/* A dash keeps the tile the same shape as the ones beside
+                        it, so a stat that cannot be read looks unavailable
+                        rather than broken. */}
+                    <div class="stat-number absent">--</div>
+                    <div class="stat-missing">{stat.note ?? 'Unavailable'}</div>
+                  </>
                 ) : (
                   <>
                     <div class="stat-number">
