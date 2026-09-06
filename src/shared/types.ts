@@ -279,6 +279,16 @@ export interface AppConfig {
   cpuTempLimit: number
   theme: ThemeConfig
   sources: Record<SourceId, { enabled: boolean }>
+  /**
+   * What tapping an alert opens. A URL or a registered protocol goes to the
+   * shell; anything else is treated as a path. Empty means the tile does
+   * nothing.
+   *
+   * Kept beside `sources` rather than inside it because the config merge is one
+   * level deep: a saved `sources` replaces the default wholesale, so a new field
+   * added in there would be lost on every existing install.
+   */
+  launch: Record<SourceId, string>
   feeds: FeedsConfig
   taskProvider: TaskProviderId
   microsoft: MicrosoftConfig

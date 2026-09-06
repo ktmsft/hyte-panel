@@ -337,6 +337,15 @@ button {
   min-height: 5.5rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--line);
+  /* A button now, so it has to be told to fill the row and read left. */
+  width: 100%;
+  text-align: left;
+}
+
+/* The only feedback a touch gets: there is no cursor and no hover. */
+.alert:active,
+.alert-tile:active {
+  opacity: 0.55;
 }
 
 .alert:last-child {
@@ -385,6 +394,7 @@ button {
 
 .alert-tile {
   position: relative;
+  width: 100%;
   aspect-ratio: 1;
   border: 1px solid var(--line);
   border-radius: var(--radius);

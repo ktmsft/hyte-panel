@@ -1,4 +1,4 @@
-import type { AlertsLayout, SourceState } from '@shared/types'
+import type { AlertsLayout, SourceId, SourceState } from '@shared/types'
 import { relativeAge } from '@/lib/format'
 import { useNow } from '@/lib/useNow'
 import { SourceIcon } from './icons'
@@ -6,6 +6,8 @@ import { SourceIcon } from './icons'
 interface Props {
   sources: SourceState[]
   layout: AlertsLayout
+  /** Where each source opens. Empty means the tile is not worth tapping. */
+  launch: Record<SourceId, string>
 }
 
 /** Only a source that reached its service has a real number. */
@@ -29,9 +31,13 @@ function note(source: SourceState, nowMs: number): { text: string; error: boolea
   }
 }
 
-export function Alerts({ sources, layout }: Props) {
+export function Alerts({ sources, layout, launch }: Props) {
   const now = useNow(30_000)
   const enabled = sources.filter((source) => source.enabled)
+
+  function open(id: SourceId): void {
+    if (launch[id]?.trim()) void window.hyte.launchSource(id)
+  }
 
   return (
     <div class="card">
@@ -47,10 +53,11 @@ export function Alerts({ sources, layout }: Props) {
               const live = hasValue(source)
               const unread = live && source.count > 0
               return (
-                <div
+                <button
                   class={`alert-tile ${source.health}${unread ? ' unread' : ''}`}
                   key={source.id}
                   title={source.label}
+                  onClick={() => open(source.id)}
                 >
                   <SourceIcon id={source.id} class="alert-icon" />
                   {live ? (
@@ -58,7 +65,7 @@ export function Alerts({ sources, layout }: Props) {
                   ) : (
                     <span class="alert-badge muted">!</span>
                   )}
-                </div>
+                </button>
               )
             })}
           </div>
@@ -67,7 +74,7 @@ export function Alerts({ sources, layout }: Props) {
             const detail = note(source, now.getTime())
             const live = hasValue(source)
             return (
-              <div class={`alert ${source.health}`} key={source.id}>
+              <button class={`alert ${source.health}`} key={source.id} onClick={() => open(source.id)}>
                 <span class={`alert-count${source.count === 0 || !live ? ' zero' : ''}`}>
                   {live ? source.count : '–'}
                 </span>
@@ -75,7 +82,7 @@ export function Alerts({ sources, layout }: Props) {
                   <div class="alert-label">{source.label}</div>
                   <div class={`alert-note${detail.error ? ' error' : ''}`}>{detail.text}</div>
                 </span>
-              </div>
+              </button>
             )
           })
         )}

@@ -154,6 +154,29 @@ another screen.
 Enter adds and keeps the field open, since lists are usually written in a run.
 Escape closes it, as does **Done** for when the keyboard is out of reach.
 
+## Tapping an alert
+
+Each alert opens something. Settings, Alerts, per source.
+
+Anything with a scheme is handed to Windows to route, which is why Discord opens
+the app rather than the website: it registers `discord://`. The same works for
+`spotify:`, `steam://` and anything else that registers a handler. Anything
+without a scheme is treated as a path to a program or file. Empty means the tile
+does nothing.
+
+Defaults are the web inboxes, except Discord, which goes to the app.
+
+| Source | Opens |
+| --- | --- |
+| Gmail | `https://mail.google.com/mail/u/0/#inbox` |
+| Proton | `https://mail.proton.me/u/0/inbox` |
+| Bluesky | `https://bsky.app/notifications` |
+| Discord | `discord://` |
+
+These live beside `sources` rather than inside it, because the config merge is
+one level deep: a saved `sources` replaces the default wholesale, so a field
+added in there would vanish on every existing install.
+
 ## Panels
 
 Settings, Panels. Clock, System, Agenda, To-dos and Alerts can each be switched off. Rows

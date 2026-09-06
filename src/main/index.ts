@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from 'electron'
 import { join } from 'node:path'
-import type { AppConfig, MailAccountId } from '@shared/types'
+import type { AppConfig, MailAccountId, SourceId } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import { getConfig, setConfig } from './config'
 import { findPanelDisplay, listDisplays } from './display'
@@ -422,6 +422,22 @@ function registerIpc(): void {
     // active one, and only the active window receives keystrokes.
     panelWindow.show()
     panelWindow.focus()
+  })
+  ipcMain.handle(IPC.sourceLaunch, async (_event, id: SourceId) => {
+    const target = getConfig().launch[id]?.trim()
+    if (!target) return
+    try {
+      // Anything with a scheme is for the shell to route, which is what makes
+      // discord:// open the app rather than the website. The rest is a path.
+      if (/^[a-z][a-z0-9+.-]*:/i.test(target)) {
+        await shell.openExternal(target)
+      } else {
+        const problem = await shell.openPath(target)
+        if (problem) console.error('[launch]', problem)
+      }
+    } catch (err) {
+      console.error('[launch]', err instanceof Error ? err.message : err)
+    }
   })
   ipcMain.handle(IPC.settingsOpen, () => {
     try {

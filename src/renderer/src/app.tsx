@@ -85,7 +85,14 @@ export function App() {
       />
     ),
     todos: <Todos key="todos" tasks={state.tasks} provider={state.taskProvider} />,
-    alerts: <Alerts key="alerts" sources={state.sources} layout={config.alertsLayout} />
+    alerts: (
+      <Alerts
+        key="alerts"
+        sources={state.sources}
+        layout={config.alertsLayout}
+        launch={config.launch}
+      />
+    )
   }
 
   const visible = PANEL_ORDER.filter((id) => config.panels[id])

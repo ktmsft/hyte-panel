@@ -818,23 +818,43 @@ export function Settings() {
           </div>
         </div>
         {(Object.keys(SOURCE_LABELS) as SourceId[]).map((id) => (
-          <div class="row" key={id}>
-            <label class="toggle">
+          <div class="feed" key={id}>
+            <div class="row">
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  checked={config.sources[id].enabled}
+                  onChange={(event) =>
+                    void patch({
+                      sources: { ...config.sources, [id]: { enabled: event.currentTarget.checked } }
+                    })
+                  }
+                />
+                {SOURCE_LABELS[id]}
+              </label>
+              <span class="spacer" />
+              {NOT_YET_WIRED[id] && <span class="todo-note">{NOT_YET_WIRED[id]}</span>}
+            </div>
+            <div class="row">
+              <span>Opens</span>
               <input
-                type="checkbox"
-                checked={config.sources[id].enabled}
-                onChange={(event) =>
-                  void patch({
-                    sources: { ...config.sources, [id]: { enabled: event.currentTarget.checked } }
-                  })
+                type="text"
+                class="grow"
+                value={config.launch[id]}
+                placeholder="Leave empty to do nothing"
+                onInput={(event) =>
+                  void patch({ launch: { ...config.launch, [id]: event.currentTarget.value } })
                 }
               />
-              {SOURCE_LABELS[id]}
-            </label>
-            <span class="spacer" />
-            {NOT_YET_WIRED[id] && <span class="todo-note">{NOT_YET_WIRED[id]}</span>}
+            </div>
           </div>
         ))}
+        <p class="hint">
+          Tapping an alert opens this. Anything with a scheme is handed to Windows, so
+          <code> discord://</code> opens the app rather than the website, and the same works for
+          <code> spotify:</code>, <code>steam://</code> and the rest. Anything else is treated as a path to
+          a program or file. Empty means the tile does nothing.
+        </p>
       </section>
 
       <section>

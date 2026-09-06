@@ -1,7 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { HyteApi } from '@shared/api'
-import type { AppConfig, FeedsStatus, MailAccountId, MicrosoftStatus, PanelState } from '@shared/types'
+import type {
+  AppConfig,
+  FeedsStatus,
+  MailAccountId,
+  MicrosoftStatus,
+  PanelState,
+  SourceId
+} from '@shared/types'
 
 const api: HyteApi = {
   getState: () => ipcRenderer.invoke(IPC.stateGet),
@@ -50,6 +57,7 @@ const api: HyteApi = {
   listDisplays: () => ipcRenderer.invoke(IPC.displaysList),
   setDisplay: (displayId: number) => ipcRenderer.invoke(IPC.panelSetDisplay, displayId),
   focusPanel: () => ipcRenderer.invoke(IPC.panelFocus),
+  launchSource: (id: SourceId) => ipcRenderer.invoke(IPC.sourceLaunch, id),
   openSettings: () => ipcRenderer.invoke(IPC.settingsOpen),
   closeSettings: () => ipcRenderer.invoke(IPC.settingsClose),
   addTask: (title: string) => ipcRenderer.invoke(IPC.taskAdd, title),

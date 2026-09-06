@@ -54,6 +54,13 @@ export const DEFAULT_CONFIG: AppConfig = {
     // Free over IMAP, unlike the Gmail API where it cost a restricted scope.
     mailDetail: 'subjects'
   },
+  launch: {
+    gmail: 'https://mail.google.com/mail/u/0/#inbox',
+    proton: 'https://mail.proton.me/u/0/inbox',
+    bluesky: 'https://bsky.app/notifications',
+    // Discord registers this, so the app is focused rather than the website.
+    discord: 'discord://'
+  },
   taskProvider: 'local',
   microsoft: { clientId: '', listId: null },
   bluesky: { handle: '', service: 'https://bsky.social' },

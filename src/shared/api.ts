@@ -4,7 +4,8 @@ import type {
   FeedsStatus,
   MailAccountId,
   MicrosoftStatus,
-  PanelState
+  PanelState,
+  SourceId
 } from './types'
 
 /** The complete surface the renderer is allowed to reach. Nothing else crosses the bridge. */
@@ -42,6 +43,8 @@ export interface HyteApi {
    * reaches it. An always-on-top window can be raised without being activated.
    */
   focusPanel(): Promise<void>
+  /** Opens whatever an alert is pointed at. Does nothing if it points nowhere. */
+  launchSource(id: SourceId): Promise<void>
   openSettings(): Promise<void>
   closeSettings(): Promise<void>
   addTask(title: string): Promise<PanelState>
