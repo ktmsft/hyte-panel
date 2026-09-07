@@ -156,7 +156,9 @@ export function getConfig(): AppConfig {
   const path = configPath()
   if (existsSync(path)) {
     try {
-      const saved = JSON.parse(readFileSync(path, 'utf8')) as LegacyConfig
+      // A BOM is what Windows editors add, and JSON.parse rejects it.
+      const text = readFileSync(path, 'utf8').replace(/^\uFEFF/, '')
+      const saved = JSON.parse(text) as LegacyConfig
       cache = merge(DEFAULT_CONFIG, migrate(saved))
       return cache
     } catch (err) {

@@ -48,7 +48,10 @@ build registers itself; `npm run dev` deliberately leaves the setting alone,
 since in dev the executable is Electron rather than the app.
 
 The installed app and `npm run dev` share one config and credential vault, so
-settings carry across.
+settings carry across. They also share a single-instance lock, so only one runs:
+quit the installed app before `npm run dev`, or dev will just focus it and exit.
+
+Changes reach the installed app only through `npm run dist` and reinstalling.
 
 VS Code terminals export `ELECTRON_RUN_AS_NODE=1`, which makes Electron boot as plain Node. `scripts/electron-vite.mjs` strips it.
 
@@ -228,6 +231,8 @@ src/main/taskbar.ts Hides the panel display's taskbar.
 src/preload/        contextBridge.
 src/renderer/       Preact UI. Never sees a token.
 src/shared/         Types and IPC names.
+scripts/            Check harnesses, and the electron-vite wrapper.
+build/              App icon, picked up by electron-builder.
 ```
 
 Credentials are encrypted with `safeStorage` (DPAPI) in `secrets.json` under `userData`, never in the repo. DPAPI is scoped to the Windows account, so the file is useless if copied elsewhere. The renderer only learns whether a credential is set, never its value.
